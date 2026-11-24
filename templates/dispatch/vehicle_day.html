@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}차량별 배정표{% endblock %}
+{% block bodyclass %}print-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>차량별 배정표 <small>{{ date }}</small></h1><div class="sub">기사 전달용 · 직송 차량은 기사 접속 QR 포함</div></div><button class="btn primary no-print" onclick="window.print()">인쇄</button></div>
+{% for (plate, driver, phone), rows in groups.items() %}
+{% set qr = qrs.get((plate, driver, phone)) %}
+<section class="panel print-block" style="margin-bottom:14px">
+  <div style="display:flex;gap:18px;align-items:flex-start">
+    <div style="flex:1">
+      <h2>{{ plate }} <small>{{ driver }} {{ phone }} · {{ rows|length }}건 · {{ '%.1f'|format(rows|sum(attribute='box')) }}BOX · {{ '%.2f'|format(rows|sum(attribute='plt')) }}PLT</small></h2>
+      <table class="tbl small">
+        <tr><th>순서</th><th>출발</th><th>도착</th><th>주소</th><th>오더</th><th class="r">수량</th><th class="r">BOX</th><th class="r">PLT</th><th>유형</th><th>메모</th></tr>
+        {% for r in rows %}<tr><td>{{ loop.index }}</td><td>{{ r.from_name }}</td><td><b>{{ r.to_name }}</b></td><td>{{ r.address or '' }}</td><td>{{ r.order_no or '#' ~ r.order_id }}</td><td class="r">{{ '%.0f'|format(r.qty or 0) }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td class="r">{{ '%.2f'|format(r.plt or 0) }}</td><td>{{ DTYPE_MAP[r.delivery_type] }}</td><td>{{ r.note or '' }}</td></tr>{% endfor %}
+      </table>
+    </div>
+    {% if qr %}
+    <div style="text-align:center;width:150px;flex:none">
+      {% if qr[1] %}<img src="{{ qr[1] }}" alt="QR" style="width:140px;height:140px">{% endif %}
+      <div class="small"><b>기사 접속 QR</b><br>카메라로 찍으면 배송 화면이 열립니다</div>
+      <div class="muted" style="font-size:9px;word-break:break-all">{{ qr[0] }}</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% else %}<div class="panel muted">{{ date }} 배차된 건이 없습니다.</div>{% endfor %}
+{% endblock %}

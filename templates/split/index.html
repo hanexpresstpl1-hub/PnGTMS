@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}분리 · 양식{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>오더 분리 · 양식 <small>{{ date }}</small></h1><div class="sub">출고센터(천안 · 안성) × 유형(직송 · RDC) 4분리 → GAON 입고예정 · 수주 양식 → 현장 피킹리스트 → 현대글로비스 작업지시</div></div>
+  <form method="get" class="inline"><label class="small muted">납품일 <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()"></label></form></div>
+<section class="panel" style="margin-bottom:14px">
+  <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;justify-content:space-between">
+    <div>
+      <h2>{{ date }} 직송 기준 PLT <small>납품일 + 납품처 PLT 합계가 이 값 이상이면 직송, 미만이면 RDC. 날짜마다 담당자가 정합니다</small></h2>
+      <form method="post" action="{{ url_for('split.threshold') }}" class="inline" style="margin-top:8px">
+        <input type="hidden" name="date" value="{{ date }}">
+        <input name="thr" type="number" step="any" value="{{ thr }}" style="width:110px;font-weight:700;font-size:16px">
+        <span class="muted small">PLT · 현재 {{ '이 날짜 전용 기준' if thr_src=='day' else '기본값(설정)' }}{% if thr_src=='day' and thr!=default_thr %} · 기본값 {{ default_thr }}{% endif %}</span>
+        <input name="note" placeholder="메모(예: 물량 많아 4로)" style="width:180px">
+        <button class="btn primary">저장하고 다시 판정</button>
+        {% if thr_src=='day' %}<button class="btn ghost" name="action" value="clear" onclick="return confirm('이 날짜 기준을 지우고 기본값으로 다시 판정할까요?')">기본값으로</button>{% endif %}
+      </form>
+      <p class="muted small" style="margin:8px 0 0">다시 판정은 <b>배차 전 오더</b>에만 적용됩니다. 특정 납품처만 바꾸려면 아래 표에서 직송/RDC를 직접 지정하세요(규칙과 무관하게 고정, '규칙'으로 되돌릴 수 있음).</p>
+    </div>
+  </div>
+  <table class="tbl small hover" style="margin-top:12px">
+    <tr><th>납품처</th><th>센터</th><th>AREA</th><th class="r">오더</th><th class="r">합계 PLT</th><th>현재</th><th>거점</th><th>근거</th><th>담당자 조정</th></tr>
+    {% for s in store_rows %}
+    <tr>
+      <td><b>{{ s.name }}</b> <small class="muted">{{ s.code }}</small></td><td>{{ s.center or '' }}</td><td>{{ s.area or '' }}</td><td class="r">{{ s.cnt }}</td>
+      <td class="r"><b>{{ '%.2f'|format(s.plt) }}</b></td>
+      <td><span class="badge {{ 'sh-assigned' if s.dtype=='direct' else 'st-gaon' }}">{{ DTYPE_MAP[s.dtype] }}</span>{% if s.manual %} <small class="warnc">담당자 지정</small>{% endif %}</td>
+      <td>{{ s.hub or '' }}</td><td class="muted small">{{ s.note or '' }}</td>
+      <td class="nowrap">{% if s.locked %}<small class="muted">배차 후 · 변경 불가</small>{% else %}
+        <form method="post" action="{{ url_for('split.manual') }}" class="inline"><input type="hidden" name="date" value="{{ date }}"><input type="hidden" name="store_id" value="{{ s.store_id }}">
+          <button class="btn xs {{ 'primary' if s.dtype=='direct' }}" name="dtype" value="direct">직송</button>
+          <button class="btn xs {{ 'primary' if s.dtype=='hub' }}" name="dtype" value="hub">RDC</button>
+          {% if s.manual %}<button class="btn xs ghost" name="dtype" value="">규칙</button>{% endif %}</form>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="9" class="muted">{{ date }} 오더가 없습니다.</td></tr>{% endfor %}
+  </table>
+</section>
+{% if errors %}<div class="flash warn">오류 오더 {{ errors }}건은 분리에서 제외됐습니다. <a href="{{ url_for('orders.list_orders', date_from=date, date_to=date, status='error') }}">오류 오더 보기</a></div>{% endif %}
+{% if orphan %}<div class="flash error">출고센터가 지정되지 않은 오더 {{ orphan|length }}건: {% for o in orphan[:8] %}<a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or o.id }}</a> {% endfor %}— 납품처 마스터의 출고센터를 채우거나 엑셀에 출고센터 열을 넣으세요.</div>{% endif %}
+
+<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(310px,1fr))">
+  {% for g in groups %}
+  <div class="card" style="--c:{{ '#003DA5' if g.dtype=='direct' else '#6D28D9' }}">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:15px">{{ g.center.name }} · {{ DTYPE_MAP[g.dtype] }}</b><span class="n" style="font-size:24px">{{ g.cnt }}<small class="muted" style="font-size:12px;font-weight:500"> 오더</small></span></div>
+    <div class="small muted" style="margin-top:4px">납품처 {{ g.stores }} · {{ '%.0f'|format(g.qty) }}EA · {{ '%.1f'|format(g.box) }}BOX · <b style="color:var(--ink)">{{ '%.2f'|format(g.plt) }}PLT</b> · {{ '%.2f'|format(g.cbm) }}CBM{% if g.hubs %}<br>거점: {{ g.hubs|join(', ') }}{% endif %}</div>
+    <div class="inline" style="margin-top:10px">
+      <a class="btn xs" href="{{ url_for('split.gaon_xlsx', date=date, center=g.center.code, dtype=g.dtype, kind='inbound') }}">입고예정 양식</a>
+      <a class="btn xs" href="{{ url_for('split.gaon_xlsx', date=date, center=g.center.code, dtype=g.dtype, kind='order') }}">수주 양식</a>
+      <a class="btn xs ghost" href="{{ url_for('orders.list_orders', date_from=date, date_to=date, dtype=g.dtype) }}">오더 보기</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid2">
+  <section class="panel">
+    <h2>센터별 현장 피킹리스트 <small>상품 총량(피킹 수량) + 납품처별 내역</small></h2>
+    <table class="tbl small">
+      {% for c in centers %}<tr><td><b>{{ c.name }}</b> <small class="muted">{{ c.code }}</small></td><td class="r"><a class="btn sm" href="{{ url_for('split.picking', date=date, center=c.code) }}" target="_blank">인쇄 화면</a> <a class="btn sm ghost" href="{{ url_for('split.picking', date=date, center=c.code, xlsx=1) }}">엑셀</a></td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="panel">
+    <h2>작업지시 · 전체 양식</h2>
+    <table class="tbl small">
+      <tr><td><b>현대글로비스 작업지시</b><br><small class="muted">배차 화면에서 차량 배정 후 · 차량 · 순서 · 착지 · 좌표</small></td><td class="r"><a class="btn sm" href="{{ url_for('split.glovis_xlsx', date=date) }}">배차 · 착지 엑셀</a></td></tr>
+      <tr><td><b>GAON 전체</b><br><small class="muted">센터 · 유형 구분 없이 한 파일</small></td><td class="r"><a class="btn sm ghost" href="{{ url_for('split.gaon_xlsx', date=date, kind='inbound') }}">입고예정</a> <a class="btn sm ghost" href="{{ url_for('split.gaon_xlsx', date=date, kind='order') }}">수주</a></td></tr>
+      <tr><td><b>가온 자동 등록</b><br><small class="muted">HAR 분석 후 연결</small></td><td class="r"><a class="btn sm ghost" href="{{ url_for('orders.gaon_status') }}">가온 등록 화면</a></td></tr>
+    </table>
+    <h2>GAON 양식 컬럼 <small><a href="{{ url_for('admin.settings') }}">설정</a>에서 변경</small></h2>
+    <p class="small muted" style="margin:0">{% for h, f in cols %}{{ h }}{{ ' · ' if not loop.last }}{% endfor %}</p>
+  </section>
+</div>
+{% endblock %}

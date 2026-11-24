@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}오더 {{ o.order_no or o.id }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1><a class="back" href="{{ back }}">&larr;</a>오더 {{ o.order_no or '#' ~ o.id }} <span class="badge st-{{ o.status }}">{{ ORDER_STATUS_MAP[o.status] }}</span></h1>
+  <div class="sub">{{ o.store_name }} · 납품일 {{ o.delivery_date }} · {{ DTYPE_MAP[o.delivery_type] }}{% if o.hub_name %} · {{ o.hub_name }}{% endif %}</div></div></div>
+<div class="grid2">
+  <section class="panel">
+    <h2>기본 정보</h2>
+    <dl class="kv">
+      <dt>납품처</dt><dd><b>{{ o.store_name }}</b> <small class="muted">{{ o.store_pg_code }}</small></dd>
+      <dt>주소</dt><dd>{{ o.address or '-' }}</dd>
+      <dt>납품일</dt><dd>{{ o.delivery_date }}</dd>
+      <dt>출고센터</dt><dd>{{ o.center_code or setting('default_center_name') }}</dd>
+      <dt>유형</dt><dd>{{ DTYPE_MAP[o.delivery_type] }}{% if o.hub_name %} · 거점 {{ o.hub_name }}{% endif %}{% if o.route_note %}<br><small class="muted">판정: {{ o.route_note }}</small>{% endif %}</dd>
+      <dt>가온</dt><dd><span class="badge g-{{ o.gaon_status }}">{{ {'pending':'대기','done':'등록','failed':'실패'}[o.gaon_status] }}</span> {{ o.gaon_slip_no or '' }} <small class="muted">{{ o.gaon_msg or '' }}</small></dd>
+      <dt>합계</dt><dd>{{ o.line_cnt }}라인 · {{ '%.0f'|format(o.qty or 0) }}EA · {{ '%.1f'|format(o.box or 0) }}BOX · <b>{{ '%.2f'|format(o.plt or 0) }}PLT</b>{% if o.cbm %} · {{ '%.2f'|format(o.cbm) }}CBM{% endif %}</dd>
+      <dt>업로드</dt><dd>{{ o.filename or '-' }} <small class="muted">{{ o.created_at }}</small></dd>
+      {% if o.error_msg %}<dt>오류</dt><dd class="bad">{{ o.error_msg }}</dd>{% endif %}
+    </dl>
+    {% if user.role in ('admin','center') %}
+    <form method="post" action="{{ url_for('orders.memo', oid=o.id) }}" class="inline" style="margin-top:10px"><input name="memo" value="{{ o.memo or '' }}" placeholder="메모" style="width:320px"><button class="btn sm">저장</button></form>
+    {% elif o.memo %}<p>메모: {{ o.memo }}</p>{% endif %}
+    <h2>상품</h2>
+    <table class="tbl small">
+      <tr><th>P&G 코드</th><th>상품명</th><th class="r">수량</th><th>단위</th><th class="r">BOX</th><th class="r">PLT</th><th>비고</th></tr>
+      {% for i in items %}<tr class="{{ 'row-err' if i.error_msg }}"><td>{{ i.item_pg_code }}</td><td>{{ i.item_name or '' }}</td><td class="r">{{ '%.0f'|format(i.qty or 0) }}</td><td>{{ i.unit or '' }}</td><td class="r">{{ i.box if i.box is not none else '' }}</td><td class="r">{{ i.plt if i.plt is not none else '' }}</td><td class="bad small">{{ i.error_msg or '' }}</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="panel">
+    <h2>운송</h2>
+    {% for s in legs %}
+    <div class="leg">
+      <div class="leg-head"><b>{{ "간선" if o.delivery_type=="hub" else "직송" }}</b> {{ s.from_name }} → {{ s.to_name }} <span class="badge sh-{{ s.status }}">{{ SHIP_STATUS_MAP[s.status] }}</span>{% if o.delivery_type=="hub" %} <small class="muted">(거점 이후 배송은 추적하지 않음)</small>{% endif %}</div>
+      <div class="muted small">예정 {{ s.planned_date }} · 차량 {{ s.plate or '미배차' }} {{ s.ton or '' }} · 기사 {{ s.driver_name or '-' }} {{ s.driver_phone or '' }}</div>
+      {% if o.delivery_type=='direct' %}
+      <ol class="steps">
+        <li class="{{ 'done' if s.center_arrived_at }}">센터 도착 <span>{{ (s.center_arrived_at or '')[11:16] }}</span></li>
+        <li class="{{ 'done' if s.departed_at }}">센터 출발 <span>{{ (s.departed_at or '')[11:16] }}</span></li>
+        <li class="{{ 'done' if s.arrived_at }}">점포 도착 <span>{{ (s.arrived_at or '')[11:16] }}{% if s.arrive_dist_m is not none %} · {{ s.arrive_dist_m|int }}m{% endif %}</span></li>
+        <li class="{{ 'done' if s.delivered_at }}">배송 완료 <span>{{ (s.delivered_at or '')[11:16] }}</span></li>
+      </ol>
+      {% if s.eta_at %}<div class="eta">예상 도착 <b>{{ s.eta_at[11:16] }}</b> <span class="muted small">약 {{ s.eta_km }}km · {{ s.eta_min|int }}분{% if s.arrived_at %} · 실제 도착 {{ s.arrived_at[11:16] }}{% endif %}</span></div>{% endif %}
+      {% if s.last_lat %}<div class="muted small">마지막 위치 {{ s.last_at }} · <a href="https://map.kakao.com/link/map/기사위치,{{ s.last_lat }},{{ s.last_lng }}" target="_blank">지도 보기</a></div>{% endif %}
+      {% else %}<div class="muted small">{% if s.departed_at %}출고 {{ s.departed_at }}{% endif %} {% if s.delivered_at %}· 완료 처리 {{ s.delivered_at }}{% endif %}</div>{% endif %}
+    </div>
+    {% else %}<p class="muted">운송 구간이 없습니다(오류 오더).</p>{% endfor %}
+    {% if pods %}
+    <h2>인수증</h2>
+    {% for p in pods %}<div class="pod small">{{ p.signed_at }} · 인수자 {{ p.receiver or '-' }} {{ p.note or '' }}
+      {% if p.photo_path %}<a href="{{ url_for('driver.pod_file', name=p.photo_path) }}" target="_blank"><img src="{{ url_for('driver.pod_file', name=p.photo_path) }}" alt="인수증"></a>{% endif %}</div>{% endfor %}
+    {% endif %}
+    <h2>이력</h2>
+    <ul class="timeline">{% for e in events %}<li><span class="t">{{ e.at }} · {{ e.user_name or '시스템' }}</span><span class="badge st-{{ e.status }}">{{ ORDER_STATUS_MAP.get(e.status, e.status) }}</span> {{ e.note or '' }}</li>{% endfor %}</ul>
+    {% if user.role=='admin' %}
+    <h2>가온 요청 기록</h2>
+    {% if jobs %}<ul class="small" style="margin:0;padding-left:18px">{% for j in jobs %}<li>{{ j.requested_at }} {{ '성공' if j.ok else '실패' }} · {{ j.message or '' }}</li>{% endfor %}</ul>{% else %}<p class="muted small">없음</p>{% endif %}
+    <h2>상태 수동 변경</h2>
+    <form method="post" action="{{ url_for('orders.change_status', oid=o.id) }}" class="inline">
+      <select name="status">{% for c, l in ORDER_STATUS_MAP.items() %}<option value="{{ c }}" {{ 'selected' if c==o.status }}>{{ l }}</option>{% endfor %}</select>
+      <input name="note" placeholder="사유"><button class="btn sm warn" onclick="return confirm('상태를 바꿉니다. 계속할까요?')">변경</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

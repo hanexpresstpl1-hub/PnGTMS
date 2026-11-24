@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}오더 업로드{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>오더 엑셀 업로드</h1><div class="sub">P&G SAP 상세 오더(일자 · 점포 · 제품 · 수량 · AREA CODE) → 검증 → 센터 × 직송/RDC 판정</div></div></div>
+<div class="grid2">
+  <section class="panel">
+    <form method="post" enctype="multipart/form-data" class="dropzone" id="dz">
+      <input type="file" name="file" id="file" accept=".xlsx,.xlsm" hidden>
+      <p style="margin:0 0 6px;font-size:15px"><b>{{ setting('shipper_name') }} 오더 엑셀(xlsx)</b>을 여기에 끌어다 놓거나 <label for="file" class="link">파일 선택</label></p>
+      <p class="muted small" style="margin:0 0 14px">업로드 후 검증 결과와 일자·점포별 PLT 판정을 먼저 보여주고, 확인을 눌러야 오더로 등록됩니다.</p>
+      <p id="fname" class="muted" style="margin:0 0 10px"></p>
+      <button class="btn primary" id="go" disabled>검증하기</button>
+    </form>
+    <h2>인식하는 컬럼 <small>헤더 이름이 아래 중 하나와 같으면 자동 인식 · {% if user.role=='admin' %}<a href="{{ url_for('admin.settings') }}">설정</a>에서 변경{% endif %}</small></h2>
+    <table class="tbl small">{% for f, lab in labels.items() %}<tr><th style="width:120px">{{ lab }}</th><td class="muted">{{ excel_map.get(f, [])|join(', ') }}</td></tr>{% endfor %}</table>
+  </section>
+  <section class="panel">
+    <h2>최근 업로드</h2>
+    <table class="tbl small">
+      <tr><th>일시</th><th>파일</th><th class="r">정상</th><th class="r">오류</th><th>사용자</th></tr>
+      {% for b in batches %}<tr><td class="muted">{{ b.uploaded_at }}</td><td><a href="{{ url_for('orders.list_orders', batch=b.id) }}">{{ b.filename }}</a></td><td class="r">{{ b.ok }}</td><td class="r {{ 'bad' if b.error }}">{{ b.error }}</td><td>{{ b.user_name or '' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">없음</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+{% endblock %}
+{% block script %}<script>
+const dz=document.getElementById('dz'), fi=document.getElementById('file'), go=document.getElementById('go'), fn=document.getElementById('fname');
+function pick(f){ if(!f) return; fn.textContent=f.name; go.disabled=false; }
+fi.onchange=()=>pick(fi.files[0]);
+dz.ondragover=e=>{e.preventDefault(); dz.classList.add('over');};
+dz.ondragleave=()=>dz.classList.remove('over');
+dz.ondrop=e=>{e.preventDefault(); dz.classList.remove('over'); fi.files=e.dataTransfer.files; pick(fi.files[0]);};
+</script>{% endblock %}

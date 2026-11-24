@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}반품 BOX 대시보드{% endblock %}
+{% block content %}
+<div class="tabs"><a href="{{ url_for('returns.index') }}">반품 목록</a><a href="{{ url_for('returns.dashboard') }}" class="on">월별 BOX 대시보드</a></div>
+<div class="page-head"><div><h1>월별 반품 BOX <small>{{ month }}</small></h1><div class="sub">거점 · 납품처 · 사유별 집계와 정산 마감</div></div>
+  <div class="inline"><form method="get" class="inline"><input type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form>
+    <a class="btn" href="{{ url_for('returns.export', month=month) }}">엑셀</a>
+    {% if user.role=='admin' %}<form method="post" action="{{ url_for('returns.settle') }}" class="inline" onsubmit="return confirm('{{ month }} 입고확인 상태의 반품을 정산 마감 처리합니다. 계속할까요?')"><input type="hidden" name="month" value="{{ month }}"><button class="btn warn">{{ month }} 정산 마감</button></form>{% endif %}</div></div>
+<div class="cards mini">
+  <div class="card" style="--c:#003DA5"><div class="n">{{ tot.cnt }}</div><div class="l">반품 건</div></div>
+  <div class="card" style="--c:#6D28D9"><div class="n">{{ '%.1f'|format(tot.box) }}</div><div class="l">총 BOX</div></div>
+  <div class="card ok"><div class="n">{{ '%.1f'|format(tot.box_done) }}</div><div class="l">입고확인 · 정산 BOX</div></div>
+  {% for c, l in statuses.items() %}{% if by_status.get(c) %}<div class="card"><div class="n">{{ by_status[c][0] }}</div><div class="l">{{ l }} · {{ '%.1f'|format(by_status[c][1]) }}BOX</div></div>{% endif %}{% endfor %}
+</div>
+<div class="grid2">
+  <section class="panel">
+    <h2>거점별</h2>
+    <table class="tbl small"><tr><th>거점</th><th class="r">건</th><th class="r">BOX</th><th class="r">입고확인 BOX</th><th class="r">정산</th><th style="width:150px"></th></tr>
+      {% for r in by_hub %}<tr><td><b>{{ r.hub }}</b></td><td class="r">{{ r.cnt }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td class="r">{{ '%.1f'|format(r.box_done or 0) }}</td><td class="r">{{ r.settled }}</td>
+        <td><span class="bar"><i style="width:{{ ((r.box or 0) / (tot.box or 1) * 100)|round|int }}%;background:#6D28D9"></i></span></td></tr>
+      {% else %}<tr><td colspan="6" class="muted">{{ month }} 반품이 없습니다.</td></tr>{% endfor %}</table>
+    <h2>사유별</h2>
+    <table class="tbl small"><tr><th>사유</th><th class="r">건</th><th class="r">BOX</th></tr>{% for r in by_reason %}<tr><td>{{ r.reason }}</td><td class="r">{{ r.cnt }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td></tr>{% endfor %}</table>
+  </section>
+  <section class="panel">
+    <h2>납품처별 상위</h2>
+    <table class="tbl small"><tr><th>납품처</th><th class="r">건</th><th class="r">BOX</th></tr>{% for r in by_store %}<tr><td>{{ r.store_name }} <small class="muted">{{ r.store_pg_code }}</small></td><td class="r">{{ r.cnt }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td></tr>{% endfor %}</table>
+    <h2>월별 추이</h2>
+    <table class="tbl small"><tr><th>월</th><th class="r">건</th><th class="r">BOX</th><th style="width:160px"></th></tr>
+      {% set mx = trend|map(attribute='box')|max if trend else 1 %}
+      {% for r in trend %}<tr><td><a href="{{ url_for('returns.dashboard', month=r.m) }}">{{ r.m }}</a></td><td class="r">{{ r.cnt }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td><span class="bar" style="width:140px"><i style="width:{{ ((r.box or 0) / (mx or 1) * 100)|round|int }}%;background:#003DA5"></i></span></td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

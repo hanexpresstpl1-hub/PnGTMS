@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}월 실적{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>월 실적 <small>{{ month }}</small></h1><div class="sub">납품일 · 유형별 오더 · 수량 · PLT · 배송완료</div></div><form method="get" class="inline"><input type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form></div>
+<div class="cards mini">
+  <div class="card" style="--c:#003DA5"><div class="n">{{ tot.cnt }}</div><div class="l">오더</div></div>
+  <div class="card"><div class="n">{{ '%.0f'|format(tot.qty) }}</div><div class="l">수량(EA)</div></div>
+  <div class="card"><div class="n">{{ '%.1f'|format(tot.box) }}</div><div class="l">BOX</div></div>
+  <div class="card"><div class="n">{{ '%.1f'|format(tot.plt) }}</div><div class="l">PLT</div></div>
+  <div class="card ok"><div class="n">{{ tot.delivered }}</div><div class="l">배송완료</div></div>
+</div>
+<section class="panel">
+<table class="tbl small">
+  <tr><th>납품일</th><th>유형</th><th class="r">오더</th><th class="r">수량</th><th class="r">BOX</th><th class="r">PLT</th><th class="r">완료</th></tr>
+  {% for r in rows %}<tr><td class="mono">{{ r.delivery_date }}</td><td>{{ DTYPE_MAP[r.delivery_type] }}</td><td class="r">{{ r.cnt }}</td><td class="r">{{ '%.0f'|format(r.qty or 0) }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td class="r">{{ '%.2f'|format(r.plt or 0) }}</td><td class="r">{{ r.delivered }}</td></tr>
+  {% else %}<tr><td colspan="7" class="muted">{{ month }} 실적이 없습니다.</td></tr>{% endfor %}
+</table>
+</section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}가온 등록{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>가온 수주 등록</h1><div class="sub">입고예정 · 수주 업로드를 포털이 대신 전송 · 화주코드 <b>{{ market or '미설정' }}</b> (<a href="{{ url_for('admin.settings') }}">설정</a>)</div></div>
+  <form method="post" action="{{ url_for('orders.gaon_connect') }}" class="inline">
+    {% if gaon.connected %}<span class="gaon-chip ok">연결됨 · {{ gaon.user_nm or gaon.user_id }}</span><button class="btn sm" name="action" value="disconnect">연결 끊기</button>
+    {% else %}<input name="gaon_id" placeholder="가온 사번" value="{{ setting('gaon_user_id') }}" style="width:120px"><input name="gaon_pw" type="password" placeholder="비밀번호" style="width:130px"><button class="btn sm primary">가온 연결</button>{% endif %}
+  </form></div>
+<div class="flash warn">가온 수주 등록 통신은 P&G 수주 업로드 화면의 HAR 분석 후 연결됩니다. 그 전까지는 <a href="{{ url_for('split.index') }}">분리 · 양식</a>에서 GAON 양식을 내려받아 올리세요. 지금 등록을 실행하면 '실패'로 기록되고 오더는 그대로 남습니다.</div>
+<form method="post" action="{{ url_for('orders.gaon_register') }}">
+  <div class="toolbar"><label><input type="checkbox" data-check-all="oid"> 전체 선택</label> <button class="btn primary" {{ 'disabled' if not gaon.connected }}>선택 오더 가온 등록</button> <span class="muted small">대기 · 실패 {{ pending|length }}건</span></div>
+  <section class="panel">
+  <table class="tbl small hover">
+    <tr><th></th><th>납품일</th><th>오더번호</th><th>납품처</th><th>센터</th><th>유형</th><th class="r">라인</th><th class="r">수량</th><th>가온</th><th>메시지</th></tr>
+    {% for o in pending %}
+    <tr><td><input type="checkbox" name="oid" value="{{ o.id }}"></td><td class="mono">{{ o.delivery_date }}</td><td><a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or '#' ~ o.id }}</a></td><td>{{ o.store_name }}</td><td>{{ o.center_code or '' }}</td><td>{{ DTYPE_MAP[o.delivery_type] }}</td><td class="r">{{ o.line_cnt }}</td><td class="r">{{ '%.0f'|format(o.qty or 0) }}</td><td><span class="badge g-{{ o.gaon_status }}">{{ {'pending':'대기','failed':'실패'}[o.gaon_status] }}</span></td><td class="muted small">{{ o.gaon_msg or '' }}</td></tr>
+    {% else %}<tr><td colspan="10" class="muted">가온 등록 대기 오더가 없습니다.</td></tr>{% endfor %}
+  </table>
+  </section>
+</form>
+<section class="panel" style="margin-top:18px">
+<h2>최근 요청 기록</h2>
+<table class="tbl small">
+  <tr><th>일시</th><th>오더</th><th>결과</th><th>메시지</th><th>사용자</th></tr>
+  {% for j in jobs %}<tr><td class="muted">{{ j.requested_at }}</td><td>{{ j.order_no or j.order_id }} {{ j.store_name or '' }}</td><td>{{ '성공' if j.ok else '실패' }}</td><td class="muted small">{{ j.message or '' }}</td><td>{{ j.user_name or '' }}</td></tr>{% else %}<tr><td colspan="5" class="muted">없음</td></tr>{% endfor %}
+</table>
+</section>
+{% endblock %}

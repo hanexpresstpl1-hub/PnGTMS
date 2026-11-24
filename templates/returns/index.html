@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}반품{% endblock %}
+{% block content %}
+<div class="tabs"><a href="{{ url_for('returns.index') }}" class="on">반품 목록</a><a href="{{ url_for('returns.dashboard') }}">월별 BOX 대시보드</a></div>
+<div class="page-head"><div><h1>반품 관리</h1><div class="sub">P&G 등록 → HanEx 거점 안내 메일 → SAMMI 차량 배차 · 회수 → 센터 입고확인 → 월별 반품 BOX 정산</div></div>
+  <div class="inline">{% if user.role in ('admin','center','shipper') %}<a class="btn primary" href="{{ url_for('returns.new') }}">+ 반품 등록</a>{% endif %}</div></div>
+<div class="cards mini">{% for c, l in statuses %}<div class="card" style="--c:{{ {'registered':'#94A3B8','mailed':'#6D28D9','assigned':'#003DA5','collected':'#D97706','received':'#15803D','settled':'#065F46','cancelled':'#CBD5E1'}[c] }}"><div class="n">{{ counts.get(c, 0) }}</div><div class="l">{{ l }}</div></div>{% endfor %}</div>
+<form class="filters" method="get">
+  <label>등록월 <input type="month" name="month" value="{{ f.month }}"></label>
+  <label>상태 <select name="status"><option value="">전체</option>{% for c, l in statuses %}<option value="{{ c }}" {{ 'selected' if f.status==c }}>{{ l }}</option>{% endfor %}</select></label>
+  <label>거점 <select name="hub"><option value="">전체</option>{% for h in hubs %}<option value="{{ h.id }}" {{ 'selected' if f.hub==h.id|string }}>{{ h.name }}</option>{% endfor %}</select></label>
+  <input name="keyword" placeholder="반품번호 · 납품처" value="{{ f.keyword }}"><button class="btn">조회</button>
+</form>
+<form method="post" action="{{ url_for('returns.mail') }}">
+  {% if user.role in ('admin','center') %}
+  <div class="toolbar"><label class="radio small"><input type="checkbox" data-check-all="rid"> 전체</label>
+    <button class="btn primary" onclick="return confirm('선택한 반품 건을 거점별로 묶어 안내 메일을 보냅니다. 계속할까요?')">선택 건 거점 안내 메일</button>
+    <small class="{{ 'muted' if mail_ok else 'bad' }}">{{ 'SMTP 설정됨 · 바로 발송' if mail_ok else 'SMTP 미설정 · 본문만 생성되어 상세 화면에서 복사' }}</small></div>
+  {% endif %}
+  <section class="panel">
+  <table class="tbl small hover">
+    <tr><th></th><th>반품번호</th><th>등록일</th><th>희망회수일</th><th>거점</th><th>납품처</th><th class="r">BOX</th><th>사유</th><th>상태</th><th>차량 / 기사</th><th>운송사</th><th></th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><input type="checkbox" name="rid" value="{{ r.id }}" {{ 'disabled' if r.status!='registered' }}></td>
+      <td><a href="{{ url_for('returns.detail', rid=r.id) }}">{{ r.return_no }}</a></td><td class="mono">{{ r.request_date }}</td><td class="mono">{{ r.pickup_date or '' }}</td>
+      <td>{% if r.hub_name %}{{ r.hub_name }}{% else %}<span class="bad">미지정</span>{% endif %}</td><td><b>{{ r.store_name }}</b> <small class="muted">{{ r.store_pg_code }}</small></td>
+      <td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td class="muted">{{ r.reason or '' }}</td>
+      <td><span class="badge rt-{{ r.status }}">{{ RETURN_STATUS_MAP[r.status] }}</span></td>
+      <td>{{ r.plate or '' }} {{ r.driver_name or '' }}</td><td>{{ r.carrier or '' }}</td>
+      <td class="nowrap">{% if user.role in ('admin','center','carrier') and r.status in ('registered','mailed') %}<button type="button" class="btn xs" onclick="openAssign({{ r.id }}, '{{ r.return_no }}', '{{ r.pickup_date or '' }}')">배차</button>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="12" class="muted">반품 건이 없습니다.</td></tr>{% endfor %}
+  </table>
+  </section>
+</form>
+<dialog id="asg">
+  <form method="post" id="asg-form" class="stack">
+    <h3 id="asg-title">반품 배차</h3>
+    <label>차량번호 <input name="plate" list="plates" required autocomplete="off"></label>
+    <datalist id="plates">{% for v in vehicles %}<option value="{{ v.plate }}">{{ v.carrier or '' }} {{ v.driver_name or '' }} {{ v.driver_phone or '' }}</option>{% endfor %}</datalist>
+    <label>기사 이름 <input name="driver_name"></label>
+    <label>기사 휴대폰 <input name="driver_phone"></label>
+    <label>운송사 <input name="carrier" placeholder="SAMMI"></label>
+    <label>회수 예정일 <input type="date" name="pickup_date" id="asg-date"></label>
+    <div class="inline"><button class="btn primary">배차 저장</button><button class="btn ghost" type="button" onclick="document.getElementById('asg').close()">닫기</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block script %}<script>
+function openAssign(id, no, date){ var f=document.getElementById('asg-form'); f.action='/returns/'+id+'/assign'; document.getElementById('asg-title').textContent='반품 배차 · '+no; document.getElementById('asg-date').value=date; document.getElementById('asg').showModal(); }
+</script>{% endblock %}

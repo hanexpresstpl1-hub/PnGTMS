@@ -1,0 +1,11 @@
+{% extends "bare.html" %}
+{% block title %}링크 오류{% endblock %}
+{% block bodyclass %}login-page{% endblock %}
+{% block content %}
+<div class="login-box">
+  <img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo">
+  <h1>링크를 열 수 없습니다</h1>
+  <p class="bad" style="margin:10px 0 18px">{{ msg }}</p>
+  <a class="btn primary big" href="{{ url_for('driver.login') }}">차량번호로 들어가기</a>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}현황{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>운영 현황</h1><div class="sub">{{ today }} 기준 · 오더 상태와 당일 배송 진행</div></div>
+  <div class="inline">
+    <form method="get" class="inline"><label class="small muted">조회일 <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()"></label></form>
+    <span class="gaon-chip {{ 'ok' if gaon.connected else 'off' }}">가온 {{ '연결됨 · ' ~ (gaon.user_nm or gaon.user_id) if gaon.connected else '미연결' }}</span>
+  </div>
+</div>
+
+<div class="cards">
+  {% for code, label, n in status_cards %}
+  <a class="card st-{{ code }}" href="{{ url_for('orders.list_orders', status=code) }}"><div class="n">{{ n }}</div><div class="l">{{ label }}</div></a>
+  {% endfor %}
+</div>
+
+<section class="panel" style="margin-bottom:18px">
+  <h2>직송 배송 진행 <small>{{ date }} · 기사 TMS 단계별 시각 · 예상도착 · 점포 도착 검증</small></h2>
+  <table class="tbl small hover">
+    <tr><th>차량 / 기사</th><th>링크</th><th>납품처</th><th>오더</th><th>진행</th><th>현재 상태</th><th>센터도착</th><th>센터출발</th><th>예상도착</th><th>점포도착</th><th>배송완료</th></tr>
+    {% for s in progress %}
+    <tr>
+      <td><b>{{ s.plate or '-' }}</b> <small class="muted">{{ s.driver_name or '' }}</small></td>
+      <td><small class="{{ 'good' if s.link_open else 'muted' }}">{{ ('열람 ' ~ s.link_open[11:16]) if s.link_open else '미열람' }}</small></td>
+      <td><b>{{ s.to_name }}</b></td>
+      <td><a href="{{ url_for('orders.detail', oid=s.order_id) }}">{{ s.order_no or '#' ~ s.order_id }}</a></td>
+      <td><span class="prog"><i class="{{ 'on' if s.center_arrived_at }}"></i><i class="{{ 'on' if s.departed_at }}"></i><i class="{{ 'on' if s.arrived_at }}"></i><i class="{{ 'on' if s.delivered_at }}"></i></span></td>
+      <td><span class="badge sh-{{ s.status }}">{{ SHIP_STATUS_MAP[s.status] }}</span> <small class="muted">{{ (s.last_at or s.assigned_at or '')[11:16] }}</small></td>
+      <td>{{ (s.center_arrived_at or '')[11:16] }}</td><td>{{ (s.departed_at or '')[11:16] }}</td>
+      <td>{% if s.eta_at and not s.arrived_at %}<b>{{ s.eta_at[11:16] }}</b> <small class="muted">{{ s.eta_km }}km</small>{% elif s.eta_at %}<span class="muted">{{ s.eta_at[11:16] }}</span>{% endif %}</td>
+      <td>{{ (s.arrived_at or '')[11:16] }}{% if s.arrive_dist_m is not none %} <small class="{{ 'muted' if s.arrive_dist_m <= (setting('arrive_radius_m')|float) else 'bad' }}">{{ s.arrive_dist_m|int }}m</small>{% endif %}</td>
+      <td>{{ (s.delivered_at or '')[11:16] }}</td>
+    </tr>
+    {% else %}<tr><td colspan="11" class="muted">{{ date }} 배차된 직송 건이 없습니다. <a href="{{ url_for('dispatch.board', date=date) }}">배차 화면으로</a></td></tr>{% endfor %}
+  </table>
+</section>
+
+<div class="grid3" style="margin-bottom:18px">
+  <section class="panel">
+    <h2>차량별 적재율(VFR) <small>{{ date }}</small></h2>
+    {% if vfr %}<table class="tbl small">
+      <tr><th>차량</th><th class="r">건</th><th class="r">PLT</th><th>적재율</th></tr>
+      {% for vid, l in vfr.items() %}<tr><td><b>{{ l.plate }}</b> <small class="muted">{{ l.carrier or '' }}</small></td><td class="r">{{ l.cnt }}</td><td class="r">{{ '%.1f'|format(l.plt) }}{% if l.cap_plt %}<small class="muted">/{{ l.cap_plt|int }}</small>{% endif %}</td>
+        <td>{% if l.vfr is not none %}<span class="bar"><i style="width:{{ [l.vfr*100, 100]|min|round|int }}%;background:{{ '#B91C1C' if l.vfr>1 else '#15803D' if l.vfr>=0.7 else '#D97706' }}"></i></span>{{ (l.vfr*100)|round|int }}%{% else %}<small class="muted">적재량 미등록</small>{% endif %}</td></tr>{% endfor %}
+    </table>{% else %}<p class="muted small">배정된 차량이 없습니다.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>오늘 납품 <small>{{ today }}</small></h2>
+    {% if today_orders %}
+    <table class="tbl small">
+      <tr><th>유형</th><th class="r">오더</th><th class="r">수량</th><th class="r">PLT</th></tr>
+      {% for r in today_orders %}<tr><td>{{ DTYPE_MAP[r.delivery_type] }}</td><td class="r">{{ r.c }}</td><td class="r">{{ '%.0f'|format(r.qty or 0) }}</td><td class="r">{{ '%.1f'|format(r.plt or 0) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="muted small">오늘 납품 오더가 없습니다.</p>{% endif %}
+    <h2>가온 등록</h2>
+    <div class="inline"><span class="kpi"><b>{{ gaon_pending }}</b><small class="muted">대기</small></span><span class="kpi"><b class="{{ 'bad' if gaon_failed }}">{{ gaon_failed }}</b><small class="muted">실패</small></span><a class="btn sm" href="{{ url_for('orders.gaon_status') }}">가온 등록 화면</a></div>
+  </section>
+  <section class="panel">
+    <h2>미배차</h2>
+    {% if unassigned %}
+    <table class="tbl small">{% for r in unassigned %}<tr><td>{{ r.planned_date }}</td><td class="r"><b>{{ r.c }}</b>건</td><td class="r"><a class="btn xs" href="{{ url_for('dispatch.board', date=r.planned_date, view='unassigned') }}">배차</a></td></tr>{% endfor %}</table>
+    {% else %}<p class="muted small">미배차 운송 건이 없습니다.</p>{% endif %}
+    <h2>반품 · 양식</h2>
+    <div class="inline"><span class="kpi"><b>{{ returns_open }}</b><small class="muted">진행 중 반품</small></span><a class="btn sm" href="{{ url_for('returns.index') }}">반품</a><a class="btn sm" href="{{ url_for('split.index', date=date) }}">분리 · 양식</a></div>
+  </section>
+</div>
+
+<div class="grid2">
+  <section class="panel">
+    <h2>최근 업로드</h2>
+    <table class="tbl small">
+      <tr><th>일시</th><th>파일</th><th class="r">정상</th><th class="r">오류</th><th>사용자</th></tr>
+      {% for b in batches %}<tr><td class="muted">{{ b.uploaded_at }}</td><td><a href="{{ url_for('orders.list_orders', batch=b.id) }}">{{ b.filename }}</a></td><td class="r">{{ b.ok }}</td><td class="r {{ 'bad' if b.error }}">{{ b.error }}</td><td>{{ b.user_name or '' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">아직 업로드가 없습니다. <a href="{{ url_for('orders.upload') }}">오더 업로드</a>부터 시작하세요.</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="panel">
+    <h2>최근 이력</h2>
+    <ul class="timeline">
+      {% for e in recent %}<li><span class="t">{{ e.at }} · {{ e.user_name or '시스템' }}</span><a href="{{ url_for('orders.detail', oid=e.order_id) }}">{{ e.order_no or e.store_name }}</a> <span class="badge st-{{ e.status }}">{{ ORDER_STATUS_MAP.get(e.status, e.status) }}</span> <span class="muted">{{ e.note or '' }}</span></li>
+      {% else %}<li class="muted">이력이 없습니다.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

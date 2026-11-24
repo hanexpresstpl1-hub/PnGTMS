@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}오더{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>오더 목록</h1><div class="sub">업로드된 P&G 오더 · 상태 · 가온 등록 · 직송/RDC 판정</div></div><a class="btn primary" href="{{ url_for('orders.upload') }}">+ 엑셀 업로드</a></div>
+<form class="filters" method="get">
+  <label>납품일 <input type="date" name="date_from" value="{{ f.date_from }}"> ~ <input type="date" name="date_to" value="{{ f.date_to }}"></label>
+  <label>상태 <select name="status"><option value="">전체</option>{% for c,l in statuses %}<option value="{{ c }}" {{ 'selected' if f.status==c }}>{{ l }}</option>{% endfor %}</select></label>
+  <label>유형 <select name="dtype"><option value="">전체</option><option value="direct" {{ 'selected' if f.dtype=='direct' }}>직송</option><option value="hub" {{ 'selected' if f.dtype=='hub' }}>RDC(거점)</option></select></label>
+  <label>가온 <select name="gaon"><option value="">전체</option><option value="pending" {{ 'selected' if f.gaon=='pending' }}>대기</option><option value="done" {{ 'selected' if f.gaon=='done' }}>등록</option><option value="failed" {{ 'selected' if f.gaon=='failed' }}>실패</option></select></label>
+  <input name="keyword" placeholder="오더번호 · 납품처 · 전표" value="{{ f.keyword }}" style="width:200px">
+  {% if f.batch %}<input type="hidden" name="batch" value="{{ f.batch }}">{% endif %}
+  <button class="btn">조회</button> <a class="btn ghost" href="{{ url_for('orders.list_orders') }}">초기화</a>
+  <span class="muted small" style="margin-left:auto">{{ rows|length }}건{% if f.batch %} · 업로드 #{{ f.batch }}{% endif %}</span>
+</form>
+<section class="panel">
+<table class="tbl hover">
+  <tr><th>납품일</th><th>오더번호</th><th>납품처</th><th>센터</th><th>유형</th><th>거점</th><th class="r">라인</th><th class="r">수량</th><th class="r">BOX</th><th class="r">PLT</th><th>가온</th><th>상태</th><th>비고</th></tr>
+  {% for o in rows %}
+  <tr class="{{ 'row-err' if o.status=='error' }}">
+    <td class="mono">{{ o.delivery_date }}</td>
+    <td><a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or '#' ~ o.id }}</a></td>
+    <td><b>{{ o.store_name or o.store_pg_code }}</b> <small class="muted">{{ o.store_pg_code }}</small></td>
+    <td>{{ o.center_code or '' }}</td>
+    <td>{{ DTYPE_MAP[o.delivery_type] }}</td><td>{{ o.hub_name or '' }}</td>
+    <td class="r">{{ o.line_cnt }}</td><td class="r">{{ '%.0f'|format(o.qty or 0) }}</td><td class="r">{{ '%.1f'|format(o.box or 0) }}</td><td class="r">{{ '%.2f'|format(o.plt or 0) }}</td>
+    <td><span class="badge g-{{ o.gaon_status }}">{{ {'pending':'대기','done':o.gaon_slip_no or '등록','failed':'실패'}[o.gaon_status] }}</span></td>
+    <td><span class="badge st-{{ o.status }}">{{ ORDER_STATUS_MAP[o.status] }}</span></td>
+    <td class="muted small">{{ o.error_msg or o.memo or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="13" class="muted">조건에 맞는 오더가 없습니다.</td></tr>{% endfor %}
+</table>
+</section>
+{% endblock %}

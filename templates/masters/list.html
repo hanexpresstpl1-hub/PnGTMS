@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}마스터 · {{ k.title }}{% endblock %}
+{% block content %}
+<div class="tabs">{% for kk, kv in {'stores':'납품처','items':'상품','centers':'출고센터','hubs':'거점센터(RDC)','vehicles':'차량','drivers':'기사'}.items() %}<a href="{{ url_for('masters.list_kind', kind=kk) }}" class="{{ 'on' if kk==kind }}">{{ kv }}</a>{% endfor %}</div>
+<div class="page-head"><div><h1>{{ k.title }} <small>{{ rows|length }}건</small></h1>
+  <div class="sub">{% if kind=='stores' %}P&G 코드는 오더 엑셀의 납품처코드와 같아야 합니다. 직송/RDC는 <a href="{{ url_for('admin.settings') }}">설정</a> 규칙(일자+점포 PLT 합계 {{ setting('direct_plt_threshold') }} PLT 이상 → 직송)으로 판정되고, <b>강제 유형</b>이 있으면 고정됩니다. RDC가 되려면 거점(또는 AREA CODE 매핑)이 필요합니다.
+    {% elif kind=='items' %}입수(EA/BOX, BOX/PLT 또는 EA/PLT)와 CBM이 있어야 PLT · CBM 환산과 자동배차가 됩니다. P&G 상품마스터 엑셀을 그대로 올려도 헤더(상품코드/SKU/Material, 박스입수, BOX/PLT, CBM …)를 자동 인식합니다.
+    {% elif kind=='hubs' %}AREA CODE를 넣으면 거점이 없는 납품처도 AREA CODE로 거점이 잡힙니다. 반품 안내 메일은 반품 거점 메일 발송에 쓰입니다.
+    {% elif kind=='vehicles' %}적재 PLT · CBM이 있는 차량만 자동배차에 쓰이고 적재율(VFR)이 계산됩니다. 용차는 배차 때 차량번호만 입력해도 자동 등록됩니다.
+    {% elif kind=='centers' %}출고센터(천안 · 안성). 오더의 출고센터는 납품처 마스터 → 엑셀의 출고센터 열 → 기본값 순으로 정해집니다.
+    {% else %}기사는 계정이 없고 배차 링크로 접속합니다. 휴대폰 뒷 4자리는 예비 로그인에 쓰입니다.{% endif %}</div></div>
+  <div class="inline">
+    <form method="get" class="inline"><input name="keyword" value="{{ kw }}" placeholder="검색" style="width:150px"><button class="btn sm">검색</button></form>
+    <a class="btn sm" href="{{ url_for('masters.template', kind=kind) }}">엑셀 양식</a>
+    <form method="post" action="{{ url_for('masters.import_xlsx', kind=kind) }}" enctype="multipart/form-data" class="inline"><input type="file" name="file" accept=".xlsx" required style="width:200px"><button class="btn sm">엑셀 일괄 등록</button></form>
+    {% if kind in ('stores','hubs','centers') %}
+    {% set missing = rows|selectattr('active')|rejectattr('lat')|list|length %}
+    <form method="post" action="{{ url_for('masters.geocode_kind', kind=kind) }}" class="inline">
+      <button class="btn sm ok" {{ 'disabled' if not setting('kakao_rest_key') }} title="주소로 위도 · 경도를 채웁니다 (카카오 주소검색)">좌표 채우기 ({{ missing }})</button>
+      <button class="btn sm ghost" name="force" value="1" {{ 'disabled' if not setting('kakao_rest_key') }} onclick="return confirm('주소가 있는 모든 행의 좌표를 다시 계산합니다. 계속할까요?')">전체 다시</button>
+    </form>
+    {% endif %}
+    <button class="btn sm primary" type="button" onclick="openEdit({})">+ 추가</button>
+  </div></div>
+{% if kind in ('stores','hubs','centers') and not setting('kakao_rest_key') %}<div class="flash warn">카카오 REST 키가 없어 좌표 채우기를 쓸 수 없습니다. <a href="{{ url_for('admin.settings') }}">설정</a>에서 입력하세요.</div>{% endif %}
+<section class="panel">
+<table class="tbl small hover">
+  <tr><th>#</th>{% for c, lab, t in k.cols %}<th>{{ lab }}</th>{% endfor %}<th>사용</th><th></th></tr>
+  {% for r in rows %}
+  <tr class="{{ 'row-dim' if not r.active }}">
+    <td class="muted">{{ r.id }}</td>
+    {% for c, lab, t in k.cols %}<td>{% if t in ('driver','hub','center') %}{{ label[t].get(r[c]|string, r[c]) if r[c] else '' }}{% elif t=='dtype' %}{{ DTYPE_MAP.get(r[c], '') }}{% elif t=='route' %}{% if r[c] %}<b>{{ '항상 ' ~ DTYPE_MAP.get(r[c], '') }}</b>{% else %}<span class="muted">규칙</span>{% endif %}{% else %}{{ r[c] if r[c] is not none else '' }}{% endif %}</td>{% endfor %}
+    <td>{{ '사용' if r.active else '중지' }}</td>
+    <td class="nowrap"><button class="btn xs" type="button" onclick='openEdit({{ dict(r)|tojson }})'>수정</button>
+      <form method="post" action="{{ url_for('masters.toggle', kind=kind, rid=r.id) }}" class="inline"><button class="btn xs ghost">{{ '중지' if r.active else '사용' }}</button></form></td>
+  </tr>
+  {% else %}<tr><td colspan="{{ k.cols|length + 3 }}" class="muted">등록된 {{ k.title }}이(가) 없습니다.</td></tr>{% endfor %}
+</table>
+</section>
+
+<dialog id="edit">
+  <form method="post" action="{{ url_for('masters.save', kind=kind) }}" class="stack" style="min-width:420px">
+    <h2 id="edit-title">{{ k.title }}</h2>
+    <input type="hidden" name="id" id="f_id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+    {% for c, lab, t in k.cols %}
+    <label>{{ lab }}
+      {% if t in ('driver','hub','center','dtype','route') %}
+      <select name="{{ c }}" id="f_{{ c }}">{% if t in ('driver','hub','center') %}<option value="">-</option>{% endif %}{% for o in refs[t] %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}</select>
+      {% else %}<input name="{{ c }}" id="f_{{ c }}" type="{{ 'number' if t=='number' else 'text' }}" {{ 'step=any' if t=='number' }}>{% endif %}
+    </label>
+    {% endfor %}
+    <label>사용 <select name="active" id="f_active"><option value="1">사용</option><option value="0">중지</option></select></label>
+    </div>
+    <div class="inline"><button class="btn primary">저장</button><button class="btn ghost" type="button" onclick="document.getElementById('edit').close()">닫기</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block script %}<script>
+const COLS={{ k.cols|map(attribute=0)|list|tojson }};
+function openEdit(r){ document.getElementById('f_id').value=r.id||''; COLS.forEach(c=>{const el=document.getElementById('f_'+c); if(el) el.value=(r[c]??'');});
+  document.getElementById('f_active').value=(r.active===0?'0':'1'); document.getElementById('edit-title').textContent=(r.id?'수정':'추가')+' · {{ k.title }}'; document.getElementById('edit').showModal(); }
+</script>{% endblock %}

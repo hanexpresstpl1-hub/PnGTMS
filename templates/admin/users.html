@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}사용자 관리{% endblock %}
+{% block content %}
+<div class="tabs"><a href="{{ url_for('admin.users') }}" class="on">사용자</a><a href="{{ url_for('admin.settings') }}">설정</a><a href="{{ url_for('admin.notifications') }}">알림 큐</a></div>
+<div class="page-head"><div><h1>사용자 <small>{{ rows|length }}명</small></h1><div class="sub">관리자(TPL2) · 센터 · 운송사(SAMMI · 글로비스) · 화주(P&G). 기사는 계정 없이 배차 링크(또는 차량번호 + 휴대폰 뒷자리)로 접속합니다.</div></div>
+  <button class="btn primary" type="button" onclick="openUser({})">+ 사용자 추가</button></div>
+<section class="panel">
+<table class="tbl small hover">
+  <tr><th>아이디</th><th>이름</th><th>역할</th><th>센터코드</th><th>상태</th><th>생성</th><th></th></tr>
+  {% for u in rows %}
+  <tr class="{{ 'row-dim' if not u.active }}"><td><b>{{ u.login_id }}</b></td><td>{{ u.name }}</td><td><span class="badge">{{ roles[u.role] }}</span></td><td>{{ u.center_code or '' }}</td><td>{{ '사용' if u.active else '중지' }}</td><td class="muted">{{ u.created_at }}</td>
+    <td class="nowrap"><button class="btn xs" type="button" onclick='openUser({{ {"id":u.id,"login_id":u.login_id,"name":u.name,"role":u.role,"center_code":u.center_code,"driver_id":u.driver_id}|tojson }})'>수정</button>
+      {% if u.id != user.id %}<form method="post" action="{{ url_for('admin.users_toggle', uid=u.id) }}" class="inline"><button class="btn xs ghost">{{ '중지' if u.active else '사용' }}</button></form>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+</section>
+<dialog id="ud">
+  <form method="post" action="{{ url_for('admin.users_save') }}" class="stack">
+    <h2 id="ud-title">사용자</h2>
+    <input type="hidden" name="id" id="u_id"><input type="hidden" name="driver_id" id="u_driver_id">
+    <label>아이디 <input name="login_id" id="u_login_id" required autocomplete="off"></label>
+    <label>이름 <input name="name" id="u_name" required></label>
+    <label>역할 <select name="role" id="u_role">{% for c, l in roles_select.items() %}<option value="{{ c }}">{{ l }}</option>{% endfor %}</select></label>
+    <label>비밀번호 <input name="password" id="u_password" type="password" autocomplete="new-password" placeholder="수정 시 비우면 유지"></label>
+    <label>센터코드(센터 역할) <input name="center_code" id="u_center_code" placeholder="예) CA, AS"></label>
+    <div class="inline"><button class="btn primary">저장</button><button class="btn ghost" type="button" onclick="document.getElementById('ud').close()">닫기</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block script %}<script>
+function openUser(u){ ['id','login_id','name','role','center_code','driver_id'].forEach(k=>{document.getElementById('u_'+k).value=u[k]??'';}); document.getElementById('u_password').value='';
+  document.getElementById('ud-title').textContent=u.id?'사용자 수정':'사용자 추가'; document.getElementById('ud').showModal(); }
+</script>{% endblock %}

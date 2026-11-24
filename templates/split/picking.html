@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}피킹리스트 {{ cname }}{% endblock %}
+{% block bodyclass %}print-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>피킹리스트 · {{ cname }} <small>{{ date }}</small></h1><div class="sub">오더 {{ n_orders }}건 · {{ n_lines }}라인 · 상품 총량 먼저, 납품처별 내역 순</div></div>
+  <div class="inline no-print"><a class="btn" href="{{ url_for('split.picking', date=date, center=request.args.get('center'), xlsx=1) }}">엑셀</a><button class="btn primary" onclick="window.print()">인쇄</button></div></div>
+<section class="panel print-block" style="margin-bottom:14px">
+  <h2>상품별 총 피킹 수량</h2>
+  <table class="tbl small">
+    <tr><th>상품코드</th><th>가온코드</th><th>상품명</th><th class="r">수량(EA)</th><th class="r">BOX</th><th class="r">PLT</th><th style="width:70px">확인</th></tr>
+    {% for t in tot %}<tr><td>{{ t.code }}</td><td>{{ t.gaon }}</td><td><b>{{ t.name }}</b></td><td class="r">{{ '%.0f'|format(t.qty) }}</td><td class="r">{{ '%.1f'|format(t.box) }}</td><td class="r">{{ '%.2f'|format(t.plt) }}</td><td></td></tr>{% endfor %}
+  </table>
+</section>
+{% for (dtype, hub, store, code), lines in tree.items() %}
+<section class="panel print-block" style="margin-bottom:14px">
+  <h2>{{ DTYPE_MAP[dtype] }}{% if hub %} · {{ hub }}{% endif %} · {{ store }} <small>{{ code }} · 오더 {{ lines|map(attribute='order_no')|unique|list|join(', ') }}</small></h2>
+  <table class="tbl small">
+    <tr><th>상품코드</th><th>가온코드</th><th>상품명</th><th class="r">수량(EA)</th><th class="r">BOX</th><th class="r">PLT</th><th style="width:70px">확인</th></tr>
+    {% for l in lines %}<tr><td>{{ l.item_pg_code }}</td><td>{{ l.item_gaon or '' }}</td><td>{{ l.item_name }}</td><td class="r">{{ '%.0f'|format(l.qty or 0) }}</td><td class="r">{{ '%.1f'|format(l.box or 0) }}</td><td class="r">{{ '%.2f'|format(l.plt or 0) }}</td><td></td></tr>{% endfor %}
+  </table>
+</section>
+{% else %}<div class="panel muted">{{ date }} {{ cname }} 오더가 없습니다.</div>{% endfor %}
+{% endblock %}

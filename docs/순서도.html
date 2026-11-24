@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>P&G 수주·배송 포털 업무 순서도</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+  :root{--pg:#003DA5;--navy:#0B1F4B;--navy2:#1B3A7A;--ink:#0F172A;--ink2:#334155;--muted:#64748B;--line:#E2E8F0}
+  body{margin:0;background:#fff;font-family:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;color:var(--ink);letter-spacing:-.01em}
+  .page{width:1920px;padding:28px 34px 22px;box-sizing:border-box;background:#fff}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--pg);background:#E8F0FF;padding:4px 10px;border-radius:999px;margin-bottom:8px}
+  h1{font-size:26px;margin:0;font-weight:800;letter-spacing:-.03em}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .meta{text-align:right;color:var(--muted);font-size:12px;line-height:1.6}
+  .meta b{color:var(--ink);font-size:13px}
+  svg{display:block}
+  .legend{display:flex;gap:10px;font-size:12px;color:var(--ink2);margin-top:12px;align-items:center;flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:#fff}
+  .sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1.5px solid}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div><div class="tag">P&amp;G × HANEX · OPERATION &amp; TMS</div>
+      <h1>P&amp;G 수주 · 배송 포털 업무 순서도</h1>
+      <div class="sub">SAP 오더 접수 → 검증 → 센터 × 직송/RDC 4분리와 양식 → 가온 등록 → 자동배차와 적재율 → 기사 TMS(GPS, 예상도착, 점포 SMS) → 추적 · 조회, 그리고 반품 프로세스</div></div>
+    <div class="meta"><b>한익스프레스 TPL2팀</b><br>2026. 11 · TF 협의용</div>
+  </div>
+  <svg id="chart" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="legend">
+    <span><i class="sw" style="background:#E8F0FF;border-color:#003DA5"></i>포털 자동 처리</span>
+    <span><i class="sw" style="background:#FFF4E0;border-color:#D97706"></i>사람이 하는 일</span>
+    <span><i class="sw" style="background:#F1EBFF;border-color:#6D28D9"></i>가온 ERP 연동</span>
+    <span><i class="sw" style="background:#E6F7EC;border-color:#15803D"></i>시작 · 종료</span>
+    <span><i class="sw" style="background:#fff;border:1.5px dashed #94A3B8"></i>2차 개발</span>
+    <span><svg width="42" height="12"><line x1="0" y1="6" x2="34" y2="6" stroke="#334155" stroke-width="1.8"/><polygon points="34,2 42,6 34,10" fill="#334155"/></svg>흐름</span>
+    <span><svg width="42" height="12"><line x1="0" y1="6" x2="34" y2="6" stroke="#B91C1C" stroke-width="1.8" stroke-dasharray="5 3"/><polygon points="34,2 42,6 34,10" fill="#B91C1C"/></svg>예외 · 재처리</span>
+  </div>
+</div>
+<script>
+const LANES = [
+  {name:"P&G 담당자",      h:112},
+  {name:"포털 (TPL2팀)",   h:156},
+  {name:"가온 ERP",        h:118},
+  {name:"배차 · 출고센터",  h:118},
+  {name:"기사 TMS (직송)",  h:118},
+  {name:"RDC 경유 (간선)",  h:118},
+  {name:"반품",            h:118},
+];
+const LABEL_W = 132, COL_W = 158, BOX_W = 134, BOX_H = 66, PAD_TOP = 34, COLS = 11;
+const STYLE = {
+  auto:  {fill:"#E8F0FF", stroke:"#003DA5", title:"#0B1F4B"},
+  human: {fill:"#FFF4E0", stroke:"#D97706", title:"#7C2D12"},
+  gaon:  {fill:"#F1EBFF", stroke:"#6D28D9", title:"#3B0764"},
+  decision:{fill:"#FFFFFF", stroke:"#0B1F4B", title:"#0B1F4B"},
+  start: {fill:"#E6F7EC", stroke:"#15803D", title:"#14532D"},
+  end:   {fill:"#E6F7EC", stroke:"#15803D", title:"#14532D"},
+  future:{fill:"#FFFFFF", stroke:"#94A3B8", title:"#475569", dash:"6 4"},
+};
+const NODES = [
+  {id:"A", lane:0, col:0, kind:"start", text:["P&G SAP 오더","일자, 점포, 제품, 수량","(AREA CODE 포함)"]},
+  {id:"S", lane:0, col:10, kind:"end",  text:["오더 조회, 추적","현재 단계, 예상도착","월 실적 확인"]},
+
+  {id:"B", lane:1, col:0, kind:"human", text:["엑셀 업로드","헤더 자동 인식"]},
+  {id:"C", lane:1, col:1, kind:"auto",  text:["검증","납품처, 상품 매핑","납품일, 수량 형식"]},
+  {id:"D", lane:1, col:2, kind:"decision", text:["오류?"]},
+  {id:"E", lane:1, col:2, row:1, kind:"human", text:["마스터 보완","점포, 상품 등록 후","재검증 / 오류오더 보류"]},
+  {id:"F", lane:1, col:3, kind:"auto",  text:["오더 확정, 4분리","센터 × 직송/RDC","PLT 기준 판정"]},
+  {id:"F2",lane:1, col:3, row:1, kind:"auto", text:["양식 내보내기","GAON 입고예정, 수주","피킹리스트, 글로비스 지시"]},
+  {id:"I", lane:1, col:5, kind:"auto",  text:["전표번호 기록","상태: 가온등록"]},
+  {id:"R", lane:1, col:10, kind:"auto", text:["상태 자동 전이","현황판: 단계, 예상도착","이력, 인수증, GPS 로그"]},
+
+  {id:"G", lane:2, col:4, kind:"gaon",  text:["가온 수주 등록","포털이 자동 로그인, 전송","(화주코드 P&G)"]},
+  {id:"H", lane:2, col:5, kind:"decision", text:["성공?"]},
+  {id:"J", lane:2, col:6, kind:"human", text:["실패 사유 확인","미등록, 오류 수정 후","재시도"]},
+  {id:"T", lane:2, col:9, kind:"future", text:["운임 산출, 정산","월 마감 (2차)"]},
+
+  {id:"K", lane:3, col:5, kind:"auto",  text:["자동배차","PLT, CBM 적재 기준","적재율(VFR) 관리"]},
+  {id:"N", lane:3, col:6, kind:"decision", text:["유형?"]},
+  {id:"L", lane:3, col:7, kind:"auto",  text:["기사 링크 발급","카톡, 문자 복사 / QR","(가입 없음)"]},
+
+  {id:"M", lane:4, col:7, kind:"human", text:["링크 열기, 센터 도착","GPS 전송","예상도착 계산"]},
+  {id:"M2",lane:4, col:8, kind:"human", text:["센터 출발 (버튼)","GPS, 예상도착 갱신","점포 SMS (출발)"]},
+  {id:"M3",lane:4, col:9, kind:"human", text:["점포 도착 (버튼)","GPS 반경 검증","점포 SMS (도착)"]},
+  {id:"O", lane:4, col:10, kind:"human", text:["배송 완료","인수자, 인수증 사진"]},
+
+  {id:"P", lane:5, col:6, kind:"human", text:["간선 출고","센터 → 거점센터","(기사 앱 없음)"]},
+  {id:"Q", lane:5, col:7, kind:"auto",  text:["거점 출고 완료 처리","배차 화면에서 일괄","배송완료로 간주"]},
+
+  {id:"RA", lane:6, col:0, kind:"human", text:["6-1 반품 오더 등록","P&G 담당자가 포털에","점포, BOX, 사유"]},
+  {id:"RB", lane:6, col:2, kind:"auto",  text:["6-2 거점 안내 메일","RDC별 묶어 발송","(SMTP / 본문 복사)"]},
+  {id:"RC", lane:6, col:4, kind:"human", text:["6-3 SAMMI 배차, 회수","차량, 기사 배정 →","회수 → 센터 입고확인"]},
+  {id:"RD", lane:6, col:6, kind:"auto",  text:["6-4 월별 반품 BOX","거점, 점포, 사유별 집계","정산 마감, 엑셀"]},
+];
+const EDGES = [
+  {f:"A", t:"B", path:"v"},
+  {f:"B", t:"C", path:"h"}, {f:"C", t:"D", path:"h"},
+  {f:"D", t:"F", path:"h", label:"아니오"},
+  {f:"D", t:"E", path:"v", label:"예", warn:true},
+  {f:"E", t:"C", path:"loop", label:"재검증", warn:true},
+  {f:"F", t:"G", path:"hv"},
+  {f:"F", t:"F2", path:"v", dashed:true},
+  {f:"G", t:"H", path:"h"},
+  {f:"H", t:"I", path:"v", label:"예"},
+  {f:"H", t:"J", path:"h", label:"아니오", warn:true},
+  {f:"J", t:"G", path:"loop", label:"재시도", warn:true},
+  {f:"I", t:"K", path:"v"},
+  {f:"K", t:"N", path:"h"},
+  {f:"N", t:"L", path:"h", label:"직송"},
+  {f:"L", t:"M", path:"v"},
+  {f:"M", t:"M2", path:"h"}, {f:"M2", t:"M3", path:"h"}, {f:"M3", t:"O", path:"h"},
+  {f:"N", t:"P", path:"v", label:"RDC 경유"},
+  {f:"P", t:"Q", path:"h"},
+  {f:"O", t:"R", path:"v"},
+  {f:"Q", t:"R", path:"around"},
+  {f:"R", t:"S", path:"v"},
+  {f:"R", t:"T", path:"lhv", dashed:true},
+  {f:"RA", t:"RB", path:"h"}, {f:"RB", t:"RC", path:"h"}, {f:"RC", t:"RD", path:"h"},
+];
+const HEADERS = ["1 접수", "2 검증", "", "3 확정", "4 가온등록", "5 배차", "", "6 링크, 센터 도착", "7 센터 출발", "8 점포 도착", "9 완료, 조회"];
+
+const svg = document.getElementById("chart");
+const NS = "http://www.w3.org/2000/svg";
+const laneY = []; let y = PAD_TOP; LANES.forEach(l => { laneY.push(y); y += l.h; });
+const W = LABEL_W + COL_W * COLS + 36, Hh = y + 8;
+svg.setAttribute("width", W); svg.setAttribute("height", Hh); svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+function el(tag, attrs, parent = svg) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
+const defs = el("defs", {});
+for (const [id, color] of [["arr", "#334155"], ["arrw", "#B91C1C"], ["arrg", "#94A3B8"]]) {
+  const m = el("marker", {id, markerWidth: 9, markerHeight: 9, refX: 8, refY: 4.5, orient: "auto", markerUnits: "userSpaceOnUse"}, defs);
+  el("path", {d: "M0,0 L9,4.5 L0,9 z", fill: color}, m);
+}
+const grad = el("linearGradient", {id: "lane", x1: 0, y1: 0, x2: 0, y2: 1}, defs);
+el("stop", {offset: "0", "stop-color": "#0B1F4B"}, grad); el("stop", {offset: "1", "stop-color": "#1B3A7A"}, grad);
+const f = el("filter", {id: "sh", x: "-10%", y: "-10%", width: "120%", height: "130%"}, defs);
+el("feDropShadow", {dx: 0, dy: 1.5, stdDeviation: 1.6, "flood-color": "#0B1F4B", "flood-opacity": ".10"}, f);
+
+// 레인 배경
+el("rect", {x: 0, y: laneY[0], width: W, height: y - laneY[0], rx: 14, fill: "#fff", stroke: "#E2E8F0"});
+LANES.forEach((l, i) => {
+  if (i % 2) el("rect", {x: LABEL_W, y: laneY[i], width: W - LABEL_W, height: l.h, fill: "#F7F9FD"});
+  if (i) el("line", {x1: LABEL_W, y1: laneY[i], x2: W, y2: laneY[i], stroke: "#E2E8F0"});
+});
+const lp = el("clipPath", {id: "lclip"}, defs); el("rect", {x: 0, y: laneY[0], width: LABEL_W, height: y - laneY[0], rx: 14}, lp);
+el("rect", {x: 0, y: laneY[0], width: LABEL_W + 14, height: y - laneY[0], fill: "url(#lane)", "clip-path": "url(#lclip)"});
+LANES.forEach((l, i) => {
+  if (i) el("line", {x1: 0, y1: laneY[i], x2: LABEL_W, y2: laneY[i], stroke: "rgba(255,255,255,.12)"});
+  const t = el("text", {x: LABEL_W / 2, y: laneY[i] + l.h / 2, "text-anchor": "middle", "dominant-baseline": "middle", fill: "#fff", "font-size": 13.5, "font-weight": 700});
+  t.textContent = l.name;
+});
+// 단계 칩
+HEADERS.forEach((s, c) => {
+  if (!s) return;
+  const cx = LABEL_W + c * COL_W + COL_W / 2, w = s.length * 8.2 + 22;
+  el("rect", {x: cx - w / 2, y: 6, width: w, height: 20, rx: 10, fill: "#E8F0FF"});
+  const t = el("text", {x: cx, y: 16.5, "text-anchor": "middle", "dominant-baseline": "middle", "font-size": 11, "font-weight": 700, fill: "#003DA5"});
+  t.textContent = s;
+});
+// 노드 좌표
+const pos = {};
+NODES.forEach(n => {
+  const lane = LANES[n.lane]; const rows = n.lane === 1 ? 2 : 1; const row = n.row || 0;
+  const cx = LABEL_W + n.col * COL_W + COL_W / 2;
+  const cy = rows === 1 ? laneY[n.lane] + lane.h / 2 : laneY[n.lane] + lane.h * (row === 0 ? 0.3 : 0.74);
+  const w = n.kind === "decision" ? 100 : BOX_W, h = n.kind === "decision" ? 58 : BOX_H;
+  pos[n.id] = {cx, cy, x: cx - w / 2, y: cy - h / 2, w, h, n};
+});
+// 엣지 (노드보다 먼저 그려 노드 뒤로)
+function pt(p, side) { return side === "r" ? [p.x + p.w, p.cy] : side === "l" ? [p.x, p.cy] : side === "t" ? [p.cx, p.y] : [p.cx, p.y + p.h]; }
+function label(x, y, s, warn) {
+  const w = s.length * 11.5 + 10;
+  el("rect", {x: x - w / 2, y: y - 9, width: w, height: 17, rx: 8, fill: "#fff", stroke: warn ? "#FECACA" : "#E2E8F0"});
+  const t = el("text", {x, y: y + 0.5, "text-anchor": "middle", "dominant-baseline": "middle", "font-size": 11, fill: warn ? "#B91C1C" : "#334155", "font-weight": 700});
+  t.textContent = s;
+}
+EDGES.forEach(e => {
+  const a = pos[e.f], b = pos[e.t]; let d, lx, ly;
+  const down = b.cy > a.cy;
+  if (e.path === "h") { const [x1, y1] = pt(a, "r"), [x2, y2] = pt(b, "l"); d = `M${x1},${y1} L${x2},${y2}`; lx = (x1 + x2) / 2; ly = y1 - 12; }
+  else if (e.path === "v") { const [x1, y1] = pt(a, down ? "b" : "t"), [x2, y2] = pt(b, down ? "t" : "b"); d = `M${x1},${y1} L${x2},${y2}`; lx = x1 + 26; ly = (y1 + y2) / 2; }
+  else if (e.path === "vh") { const [x1, y1] = pt(a, "b"), [x2, y2] = pt(b, "l"); d = `M${x1},${y1} L${x1},${y2} L${x2},${y2}`; lx = x1 + 22; ly = (y1 + y2) / 2; }
+  else if (e.path === "hv") { const [x1, y1] = pt(a, "r"), [x2, y2] = pt(b, down ? "t" : "b"); d = `M${x1},${y1} L${x2},${y1} L${x2},${y2}`; lx = (x1 + x2) / 2; ly = y1 - 12; }
+  else if (e.path === "lhv") { const [x1, y1] = pt(a, "l"), [x2, y2] = pt(b, "t"); d = `M${x1},${y1} L${x2},${y1} L${x2},${y2}`; lx = (x1 + x2) / 2; ly = y1 - 12; }
+  else if (e.path === "loop") { const [x1, y1] = pt(a, "b"), [x2, y2] = pt(b, "b"); const yy = Math.max(y1, y2) + 16; d = `M${x1},${y1} L${x1},${yy} L${x2},${yy} L${x2},${y2}`; lx = (x1 + x2) / 2; ly = yy; }
+  else if (e.path === "around") { const [x1, y1] = pt(a, "r"), [x2, y2] = pt(b, "r"); const xx = W - 16; d = `M${x1},${y1} L${xx},${y1} L${xx},${y2} L${x2},${y2}`; lx = xx - 10; ly = (y1 + y2) / 2; }
+  el("path", {d, fill: "none", stroke: e.warn ? "#B91C1C" : e.dashed ? "#94A3B8" : "#334155", "stroke-width": 1.8, "stroke-linejoin": "round",
+              "stroke-dasharray": e.warn || e.dashed ? "5 3" : "", "marker-end": `url(#${e.warn ? "arrw" : e.dashed ? "arrg" : "arr"})`});
+  if (e.label) label(lx, ly, e.label, e.warn);
+});
+// 노드
+NODES.forEach(n => {
+  const p = pos[n.id], st = STYLE[n.kind];
+  const g = el("g", {filter: n.kind === "future" ? "" : "url(#sh)"});
+  if (n.kind === "decision") {
+    el("polygon", {points: `${p.cx},${p.y} ${p.x + p.w},${p.cy} ${p.cx},${p.y + p.h} ${p.x},${p.cy}`, fill: st.fill, stroke: st.stroke, "stroke-width": 1.8}, g);
+  } else {
+    const r = n.kind === "start" || n.kind === "end" ? 30 : 10;
+    el("rect", {x: p.x, y: p.y, width: p.w, height: p.h, rx: r, fill: st.fill, stroke: st.stroke, "stroke-width": 1.6, "stroke-dasharray": st.dash || ""}, g);
+  }
+  const lines = n.text, lh = 15, y0 = p.cy - (lines.length - 1) * lh / 2;
+  lines.forEach((s, i) => {
+    const t = el("text", {x: p.cx, y: y0 + i * lh, "text-anchor": "middle", "dominant-baseline": "middle", "font-size": i === 0 ? 12.5 : 11,
+                          "font-weight": i === 0 ? 700 : 500, fill: i === 0 ? st.title : "#475569"}, g);
+    t.textContent = s;
+  });
+});
+</script>
+</body>
+</html>

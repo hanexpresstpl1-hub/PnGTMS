@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}오늘 배송{% endblock %}
+{% block bodyclass %}{{ 'mobile' if link else '' }}{% endblock %}
+{% block content %}
+<div class="m-head">
+  <form method="get" class="inline">
+    {% if drivers %}<select name="driver_id" onchange="this.form.submit()"><option value="">기사 선택(미리보기)</option>{% for d in drivers %}<option value="{{ d.id }}" {{ 'selected' if d.id==did }}>{{ d.name }}</option>{% endfor %}</select>{% endif %}
+    {% if not link %}<input type="date" name="date" value="{{ date }}" onchange="this.form.submit()">{% endif %}
+  </form>
+  <div class="m-sum">{{ rows|length }}건 중 <b>{{ done }}</b>건 완료</div>
+</div>
+<div id="gps-note" class="small muted" style="margin:-4px 0 10px">버튼을 누르면 현재 위치(GPS)를 함께 보냅니다.</div>
+{% set qs = {'driver_id': request.args.get('driver_id')} if request.args.get('driver_id') else {} %}
+{% for r in rows %}
+<div class="m-card sh-{{ r.status }}">
+  <div class="inline" style="justify-content:space-between;width:100%"><span class="badge sh-{{ r.status }}">{{ SHIP_STATUS_MAP[r.status] }}</span> <span class="muted small">직송 · {{ r.plate or '' }}</span></div>
+  <div class="m-title">{{ r.to_name }}</div>
+  <div class="m-addr">{{ r.address or '' }}</div>
+  <div class="small muted">출발 {{ r.from_name }} · 오더 {{ r.order_no or '#' ~ r.order_id }} · {{ '%.0f'|format(r.qty or 0) }}EA / {{ '%.1f'|format(r.box or 0) }}BOX / {{ '%.2f'|format(r.plt or 0) }}PLT</div>
+  {% if r.memo %}<div class="small">메모: {{ r.memo }}</div>{% endif %}
+  <ol class="steps">
+    <li class="{{ 'done' if r.center_arrived_at }}">센터 도착 <span>{{ r.center_arrived_at[11:16] if r.center_arrived_at else '' }}</span></li>
+    <li class="{{ 'done' if r.departed_at }}">센터 출발 <span>{{ r.departed_at[11:16] if r.departed_at else '' }}</span></li>
+    <li class="{{ 'done' if r.arrived_at }}">점포 도착 <span>{{ r.arrived_at[11:16] if r.arrived_at else '' }}{% if r.arrive_dist_m is not none %} · {{ r.arrive_dist_m|int }}m{% endif %}</span></li>
+    <li class="{{ 'done' if r.delivered_at }}">배송 완료 <span>{{ r.delivered_at[11:16] if r.delivered_at else '' }}</span></li>
+  </ol>
+  {% if r.eta_at and not r.arrived_at %}<div class="eta">예상 도착 <b>{{ r.eta_at[11:16] }}</b> <span class="muted small">약 {{ r.eta_km }}km · {{ r.eta_min|int }}분</span></div>{% endif %}
+  <div class="m-actions">
+    {% set nxt = NEXT_ACTION.get(r.status) %}
+    {% if nxt == 'deliver' %}
+      <button class="btn big ok" type="button" onclick="this.nextElementSibling.showModal()">배송 완료</button>
+      <dialog><form method="post" action="{{ url_for('driver.action', sid=r.id, act='deliver', **qs) }}" enctype="multipart/form-data" class="stack gps-form">
+        <h3>{{ r.to_name }} 완료 처리</h3>
+        <label>인수자 <input name="receiver" placeholder="이름"></label>
+        <label>인수증 사진 <input type="file" name="photo" accept="image/*" capture="environment"></label>
+        <label>특이사항 <input name="note"></label>
+        <input type="hidden" name="lat"><input type="hidden" name="lng"><input type="hidden" name="acc">
+        <div class="inline"><button class="btn primary big">완료</button><button class="btn ghost" type="button" onclick="this.closest('dialog').close()">취소</button></div>
+      </form></dialog>
+    {% elif nxt %}
+      <form method="post" action="{{ url_for('driver.action', sid=r.id, act=nxt, **qs) }}" class="gps-form">
+        <input type="hidden" name="lat"><input type="hidden" name="lng"><input type="hidden" name="acc">
+        <button class="btn big {{ 'primary' if nxt!='arrive' else 'warn' }}">{{ DRIVER_ACTIONS[nxt][1] }}</button>
+      </form>
+    {% elif r.status=='delivered' %}<span class="good">완료 {{ r.delivered_at }}</span>
+    {% else %}<span class="muted">배차 대기</span>{% endif %}
+  </div>
+</div>
+{% else %}
+<div class="panel center muted">{{ date }} 배정된 직송 건이 없습니다.</div>
+{% endfor %}
+{% endblock %}
+{% block script %}<script>
+document.querySelectorAll('form.gps-form').forEach(function (f) {
+  f.addEventListener('submit', function (ev) {
+    if (f.dataset.ready === '1') return;
+    ev.preventDefault();
+    var btn = f.querySelector('button[type=submit], button:not([type])'); if (btn) { btn.disabled = true; btn.dataset.t = btn.textContent; btn.textContent = '위치 확인 중...'; }
+    function go() { f.dataset.ready = '1'; f.submit(); }
+    function fail(msg) { if (btn) { btn.disabled = false; btn.textContent = btn.dataset.t; }
+      if (confirm('위치를 확인하지 못했습니다 (' + msg + ').\n위치 없이 처리할까요?')) go(); }
+    if (!navigator.geolocation) return fail('이 브라우저는 위치를 지원하지 않음');
+    navigator.geolocation.getCurrentPosition(function (p) {
+      f.lat.value = p.coords.latitude.toFixed(6); f.lng.value = p.coords.longitude.toFixed(6); f.acc.value = Math.round(p.coords.accuracy || 0); go();
+    }, function (e) { fail(e.code === 1 ? '위치 권한 거부' : e.code === 2 ? '위치 사용 불가' : '시간 초과'); }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 30000});
+  });
+});
+if (location.protocol !== 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  document.getElementById('gps-note').innerHTML = '<span class="bad">GPS는 HTTPS 접속에서만 동작합니다. 지금은 위치 없이 처리됩니다.</span>';
+}
+</script>{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}배차 · 적재율{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>배차 · 적재율 <small>{{ date }}</small></h1><div class="sub">총 {{ summary.total }}건 · 미배차 <b class="{{ 'bad' if summary.unassigned }}">{{ summary.unassigned }}</b> · {{ summary.box }}BOX · {{ summary.plt }}PLT</div></div>
+  <div class="inline"><a class="btn" href="{{ url_for('split.glovis_xlsx', date=date) }}">글로비스 작업지시</a><a class="btn" href="{{ url_for('dispatch.vehicle_day', date=date) }}" target="_blank">차량별 배정표 · QR</a></div></div>
+<form class="filters" method="get">
+  <label>납품일 <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()"></label>
+  <label>유형 <select name="dtype" onchange="this.form.submit()"><option value="">전체</option><option value="direct" {{ 'selected' if dtype=='direct' }}>직송</option><option value="hub" {{ 'selected' if dtype=='hub' }}>RDC(거점)</option></select></label>
+  <label>보기 <select name="view" onchange="this.form.submit()"><option value="all" {{ 'selected' if view=='all' }}>전체</option><option value="unassigned" {{ 'selected' if view=='unassigned' }}>미배차</option><option value="assigned" {{ 'selected' if view=='assigned' }}>배차완료</option></select></label>
+</form>
+<div class="grid2" style="margin-bottom:14px">
+  <section class="panel">
+    <h2>자동배차 <small>PLT · CBM 적재 기준, 권역 · 거점 · 좌표 순으로 묶어 큰 차량부터 채움 (상한 {{ ((setting('auto_fill_rate') or 0.95)|float*100)|round|int }}%)</small></h2>
+    <form method="post" action="{{ url_for('dispatch.auto') }}" class="inline" onsubmit="return confirm('미배차 건을 자동으로 배정합니다. 결과는 아래 표에서 조정할 수 있습니다. 계속할까요?')">
+      <input type="hidden" name="date" value="{{ date }}">
+      <select name="center"><option value="">전체 센터</option>{% for c in centers %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}</select>
+      <label class="radio small"><input type="checkbox" name="include_hub" value="1"> RDC 간선 건 포함</label>
+      <button class="btn primary">자동배차 실행</button>
+    </form>
+    <p class="muted small" style="margin:8px 0 0">차량 마스터의 적재 PLT · CBM이 있는 차량만 씁니다. 결과는 아래 표에서 배차 해제 · 재배정으로 조정하세요.</p>
+  </section>
+  <section class="panel">
+    <h2>차량별 적재율(VFR)</h2>
+    {% if vfr %}
+    <table class="tbl small">
+      <tr><th>차량</th><th>운송사</th><th class="r">건</th><th class="r">PLT</th><th class="r">CBM</th><th style="width:170px">적재율</th></tr>
+      {% for vid, l in vfr.items() %}
+      <tr><td><b>{{ l.plate }}</b> <small class="muted">{{ l.ton or '' }}</small></td><td>{{ l.carrier or '' }}</td><td class="r">{{ l.cnt }}</td>
+        <td class="r">{{ '%.1f'|format(l.plt) }}{% if l.cap_plt %}<small class="muted">/{{ l.cap_plt|int }}</small>{% endif %}</td>
+        <td class="r">{{ '%.1f'|format(l.cbm) }}{% if l.cap_cbm %}<small class="muted">/{{ l.cap_cbm|int }}</small>{% endif %}</td>
+        <td>{% if l.vfr is not none %}<span class="bar"><i style="width:{{ [l.vfr*100, 100]|min|round|int }}%;background:{{ '#B91C1C' if l.vfr>1 else '#15803D' if l.vfr>=0.7 else '#D97706' }}"></i></span><small class="{{ 'bad' if l.vfr>1 }}">{{ (l.vfr*100)|round|int }}%</small>{% else %}<small class="muted">적재량 미등록</small>{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted small">배정된 차량이 없습니다.</p>{% endif %}
+  </section>
+</div>
+<form method="post" action="{{ url_for('dispatch.assign') }}" id="assign-form">
+  <div class="toolbar sticky">
+    <label class="radio small"><input type="checkbox" data-check-all="sid"> 전체</label>
+    <input name="plate" list="plates" placeholder="차량번호" style="width:120px" autocomplete="off" id="f-plate">
+    <datalist id="plates">{% for v in vehicles %}<option value="{{ v.plate }}">{{ v.ton or '' }} {{ v.driver_name or '' }} {{ v.driver_phone or '' }}{% if loads.get(v.id) %} · 배정 {{ loads[v.id].cnt }}건 {{ '%.1f'|format(loads[v.id].plt) }}PLT{% endif %}</option>{% endfor %}</datalist>
+    <input name="driver_name" list="dnames" placeholder="기사 이름" style="width:100px" autocomplete="off" id="f-dname">
+    <datalist id="dnames">{% for d in drivers %}<option value="{{ d.name }}">{{ d.phone or '' }} {{ d.company or '' }}</option>{% endfor %}</datalist>
+    <input name="driver_phone" list="dphones" placeholder="휴대폰 번호" style="width:130px" autocomplete="off" id="f-dphone">
+    <datalist id="dphones">{% for d in drivers if d.phone %}<option value="{{ d.phone }}">{{ d.name }}</option>{% endfor %}</datalist>
+    <input name="note" placeholder="메모" style="width:110px">
+    <button class="btn primary" name="action" value="assign">선택 건 배차 + 링크 발급</button>
+    <button class="btn ghost" name="action" value="unassign" onclick="return confirm('선택 건의 배차를 해제할까요?')">배차 해제</button>
+    <button class="btn ok" name="action" value="ship_hub" onclick="return confirm('선택한 RDC 건을 출고 완료(배송완료 간주)로 처리할까요?')" title="거점 물량은 센터 출고 시점에 완료로 간주하고 거점 배송은 추적하지 않습니다">RDC 출고 완료</button>
+  </div>
+  <p class="muted small" style="margin:4px 0 10px">차량번호 · 기사 · 전화를 입력하면 없는 차량 · 기사는 자동 등록되고, 직송 건에는 <b>기사 접속 링크</b>가 발급됩니다. 링크는 복사해 카톡 · 문자로 보내거나 배정표 QR로 전달하세요(가입 없음, 예비: 차량번호 + 휴대폰 뒷자리).</p>
+  <section class="panel">
+  <table class="tbl small hover">
+    <tr><th></th><th>출발</th><th>도착</th><th>오더</th><th>유형</th><th class="r">수량</th><th class="r">BOX</th><th class="r">PLT</th><th>가온</th><th>차량</th><th>기사</th><th>상태</th><th>기사 링크</th><th>메모</th></tr>
+    {% for r in rows %}
+    {% set l = links.get((r.driver_id, r.vehicle_id)) if r.driver_id and r.vehicle_id else none %}
+    <tr class="{{ 'row-dim' if r.status in ('delivered',) }}">
+      <td><input type="checkbox" name="sid" value="{{ r.id }}"></td>
+      <td>{{ r.from_name }}</td><td><b>{{ r.to_name }}</b><br><small class="muted">{{ r.address or '' }}</small></td>
+      <td><a href="{{ url_for('orders.detail', oid=r.order_id) }}">{{ r.order_no or '#' ~ r.order_id }}</a></td>
+      <td>{{ DTYPE_MAP[r.delivery_type] }}</td><td class="r">{{ '%.0f'|format(r.qty or 0) }}</td><td class="r">{{ '%.1f'|format(r.box or 0) }}</td><td class="r">{{ '%.2f'|format(r.plt or 0) }}</td>
+      <td><span class="badge g-{{ r.gaon_status }}">{{ {'pending':'대기','done':'등록','failed':'실패'}[r.gaon_status] }}</span></td>
+      <td>{{ r.plate or '' }} <small class="muted">{{ r.ton or '' }}</small></td><td>{{ r.driver_name or '' }} <small class="muted">{{ r.driver_phone or '' }}</small></td>
+      <td><span class="badge sh-{{ r.status }}">{{ SHIP_STATUS_MAP[r.status] }}</span></td>
+      <td class="nowrap">
+        {% if r.delivery_type=='direct' and r.driver_id and r.vehicle_id %}
+          {% if l %}
+            <button type="button" class="btn xs" data-copy="{{ link_url(l.token) }}" title="{{ link_url(l.token) }}">복사</button>
+            <button type="button" class="btn xs ghost" onclick="renew({{ r.driver_id }},{{ r.vehicle_id }},'{{ r.planned_date }}')" title="이전 링크와 기기 묶음을 해제하고 새로 발급">재발급</button>
+            <small class="{{ 'good' if l.first_open_at else 'muted' }}">{{ ('열람 ' ~ l.first_open_at[11:16]) if l.first_open_at else '미열람' }}{% if l.via=='plate' %} · 차량번호{% endif %}</small>
+          {% else %}<button type="button" class="btn xs" onclick="renew({{ r.driver_id }},{{ r.vehicle_id }},'{{ r.planned_date }}')">링크 발급</button>{% endif %}
+        {% elif r.delivery_type=='hub' %}<small class="muted">RDC · 앱 없음</small>{% endif %}
+      </td>
+      <td class="muted small">{{ r.note or '' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="14" class="muted">{{ date }} 운송 건이 없습니다.</td></tr>{% endfor %}
+  </table>
+  </section>
+</form>
+<form method="post" action="{{ url_for('dispatch.link_renew') }}" id="renew-form" hidden>
+  <input name="driver_id" id="rn-d"><input name="vehicle_id" id="rn-v"><input name="date" id="rn-date">
+</form>
+{% endblock %}
+{% block script %}<script>
+function renew(d, v, date){ if(!confirm('기사 링크를 새로 발급할까요? 이전 링크는 더 이상 열리지 않습니다.')) return;
+  document.getElementById('rn-d').value=d; document.getElementById('rn-v').value=v; document.getElementById('rn-date').value=date; document.getElementById('renew-form').submit(); }
+document.querySelectorAll('[data-copy]').forEach(function(b){ b.addEventListener('click', function(){
+  var t=b.getAttribute('data-copy');
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ b.textContent='복사됨'; setTimeout(function(){ b.textContent='복사'; }, 1500); })
+   .catch(function(){ window.prompt('링크를 복사하세요', t); });
+});});
+var VEH={{ vehicles|map(attribute='plate')|list|tojson }}, VD={{ vehicles|map(attribute='driver_name')|list|tojson }}, VP={{ vehicles|map(attribute='driver_phone')|list|tojson }};
+document.getElementById('f-plate').addEventListener('change', function(){ var i=VEH.indexOf(this.value); if(i>=0){ if(VD[i]&&!document.getElementById('f-dname').value) document.getElementById('f-dname').value=VD[i]; if(VP[i]&&!document.getElementById('f-dphone').value) document.getElementById('f-dphone').value=VP[i]; } });
+</script>{% endblock %}

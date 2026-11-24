@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}설정{% endblock %}
+{% block content %}
+<div class="tabs"><a href="{{ url_for('admin.users') }}">사용자</a><a href="{{ url_for('admin.settings') }}" class="on">설정</a><a href="{{ url_for('admin.notifications') }}">알림 큐</a></div>
+<div class="page-head"><div><h1>설정</h1><div class="sub">직송/RDC 판정 규칙 · 가온 · 지오코딩 · 자동배차 · SMS · 메일 · 양식 컬럼</div></div></div>
+<section class="panel" style="margin-bottom:18px">
+  <h2>직송 / RDC 판정 규칙</h2>
+  <form method="post" class="stack">
+    <div class="inline" style="gap:18px;align-items:flex-end;flex-wrap:wrap">
+      {% for k, lab, t, opts in route_fields %}
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2);font-weight:500">{{ lab }}
+        {% if t=='select' %}<select name="{{ k }}">{% for v, l in opts %}<option value="{{ v }}" {{ 'selected' if setting(k)==v }}>{{ l }}</option>{% endfor %}</select>
+        {% else %}<input name="{{ k }}" type="number" step="any" value="{{ setting(k) or '' }}" style="width:120px">{% endif %}</label>
+      {% endfor %}
+      {% for k, lab in fields %}<input type="hidden" name="{{ k }}" value="{{ setting(k) or '' }}">{% endfor %}
+      {% for f, lab in labels.items() %}<input type="hidden" name="map_{{ f }}" value="{{ emap.get(f, [])|join(', ') }}">{% endfor %}
+      {% if setting('shipper_can_upload')=='1' %}<input type="hidden" name="shipper_can_upload" value="1">{% endif %}
+      <button class="btn primary">규칙 저장</button>
+    </div>
+  </form>
+  <p class="muted small" style="margin:10px 0 8px">업로드 확정 시 <b>같은 납품일 + 같은 납품처</b>의 오더 PLT를 모두 합쳐(이미 등록된 오더 포함) 기준 이상이면 직송, 미만이면 RDC(거점)로 판정합니다. 배차 전 오더는 추가 업로드가 오면 다시 판정됩니다. 납품처 마스터의 <b>강제 유형</b>이 규칙보다 우선하고, PLT는 상품 입수(EA/BOX, BOX/PLT, EA/PLT)로 환산합니다.</p>
+  <form method="post" action="{{ url_for('admin.reroute') }}" class="inline" onsubmit="return confirm('배차 전 오더를 현재 규칙으로 다시 판정합니다. 계속할까요?')">
+    <label class="small muted">납품일 <input type="date" name="date_from"> ~ <input type="date" name="date_to"></label>
+    <button class="btn sm warn">배차 전 오더 다시 판정 (대상 {{ pending }}건)</button>
+  </form>
+</section>
+<form method="post" class="grid2">
+  {% for k, lab, t, opts in route_fields %}<input type="hidden" name="{{ k }}" value="{{ setting(k) or '' }}">{% endfor %}
+  <section class="panel stack">
+    <h2>기본 · 연동</h2>
+    {% for k, lab in fields %}<label>{{ lab }} <input name="{{ k }}" value="{{ setting(k) or '' }}"></label>{% endfor %}
+    <label class="radio"><input type="checkbox" name="shipper_can_upload" {{ 'checked' if setting('shipper_can_upload')=='1' }}> 화주(P&G) 담당자가 포털에서 직접 오더 업로드 허용</label>
+    <p class="muted small" style="margin:0">가온 비밀번호는 저장하지 않습니다. 가온 등록 화면에서 연결할 때마다 입력합니다.</p>
+    <button class="btn primary">저장</button>
+  </section>
+  <section class="panel stack">
+    <h2>오더 엑셀 컬럼 매핑 <small>필드별 인식 헤더를 쉼표로 나열</small></h2>
+    {% for f, lab in labels.items() %}<label>{{ lab }}{% if f in ('store_code','delivery_date','item_code','qty') %} <small class="bad">필수</small>{% endif %} <input name="map_{{ f }}" value="{{ emap.get(f, [])|join(', ') }}"></label>{% endfor %}
+    {% for k, lab in json_fields %}<label>{{ lab }} <textarea name="{{ k }}" rows="4" style="font-family:ui-monospace,Consolas,monospace;font-size:12px">{{ setting(k) or '' }}</textarea></label>{% endfor %}
+    <button class="btn primary">저장</button>
+  </section>
+</form>
+{% endblock %}

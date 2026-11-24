@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}반품 등록{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1><a class="back" href="{{ url_for('returns.index') }}">&larr;</a>반품 오더 등록</h1><div class="sub">P&G 담당자가 직접 등록 · 거점(RDC)은 납품처 마스터 · AREA CODE로 자동 지정</div></div></div>
+<form method="post" class="grid2">
+  <section class="panel stack">
+    <h2>기본</h2>
+    <label>납품처 (P&G 코드 또는 이름) <input name="store_code" list="stores" value="{{ form.get('store_code','') }}" required autocomplete="off"></label>
+    <datalist id="stores">{% for s in stores %}<option value="{{ s.pg_code }}">{{ s.name }} · {{ s.address or '' }}</option>{% endfor %}</datalist>
+    <label>희망 회수일 <input type="date" name="pickup_date" value="{{ form.get('pickup_date','') }}"></label>
+    <label>반품 BOX 합계 <input type="number" step="any" name="box" value="{{ form.get('box','') }}" placeholder="비우면 상품 내역 합계"></label>
+    <label>반품 사유 <select name="reason"><option value="">선택</option>{% for r in ['파손','유통기한','오배송','과납','점포 요청','기타'] %}<option {{ 'selected' if form.get('reason')==r }}>{{ r }}</option>{% endfor %}</select></label>
+    <label>메모 <input name="memo" value="{{ form.get('memo','') }}"></label>
+    <button class="btn primary big">등록</button>
+  </section>
+  <section class="panel">
+    <h2>상품 내역 <small>(선택) 코드 또는 이름 · 수량 · 단위</small></h2>
+    <table class="tbl small">
+      <tr><th>상품</th><th class="r">수량</th><th>단위</th><th>사유</th></tr>
+      {% for i in range(1, 11) %}
+      <tr><td><input name="item_code_{{ i }}" list="items" style="width:100%" autocomplete="off"></td><td><input name="item_qty_{{ i }}" type="number" step="any" style="width:90px"></td>
+        <td><select name="item_unit_{{ i }}"><option>BOX</option><option>EA</option></select></td><td><input name="item_reason_{{ i }}" style="width:100%"></td></tr>
+      {% endfor %}
+    </table>
+    <datalist id="items">{% for it in items %}<option value="{{ it.pg_code }}">{{ it.name }}{% if it.box_qty %} · {{ it.box_qty|int }}EA/BOX{% endif %}</option>{% endfor %}</datalist>
+  </section>
+</form>
+{% endblock %}

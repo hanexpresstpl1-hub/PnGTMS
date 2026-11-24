@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}오더 조회{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ setting('shipper_name') }} 오더 조회 · 추적</h1><div class="sub">현재 단계 · 예상 도착 · 완료 시각을 실시간으로 확인합니다</div></div>{% if can_upload or user.role=='admin' %}<a class="btn primary" href="{{ url_for('orders.upload') }}">+ 오더 업로드</a>{% endif %}</div>
+<form class="filters" method="get">
+  <label>납품일 <input type="date" name="date_from" value="{{ f.date_from }}"> ~ <input type="date" name="date_to" value="{{ f.date_to }}"></label>
+  <label>상태 <select name="status"><option value="">전체</option>{% for c,l in statuses %}<option value="{{ c }}" {{ 'selected' if f.status==c }}>{{ l }}</option>{% endfor %}</select></label>
+  <input name="keyword" placeholder="오더번호 · 납품처" value="{{ f.keyword }}">
+  <button class="btn">조회</button>
+</form>
+<div class="cards mini">
+  {% for c, l in statuses %}{% if counts.get(c) %}<a class="card st-{{ c }}" href="{{ url_for('portal.orders', date_from=f.date_from, date_to=f.date_to, status=c) }}"><div class="n">{{ counts[c] }}</div><div class="l">{{ l }}</div></a>{% endif %}{% endfor %}
+</div>
+<section class="panel">
+<table class="tbl hover">
+  <tr><th>납품일</th><th>오더번호</th><th>납품처</th><th>유형</th><th class="r">수량</th><th class="r">BOX</th><th>현재 상태</th><th>예상도착</th><th>완료시각</th></tr>
+  {% for o in rows %}
+  <tr><td class="mono">{{ o.delivery_date }}</td><td><a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or '#' ~ o.id }}</a></td><td><b>{{ o.store_name }}</b> <small class="muted">{{ o.store_pg_code }}</small></td>
+    <td>{{ DTYPE_MAP[o.delivery_type] }}{% if o.hub_name %} <small class="muted">({{ o.hub_name }})</small>{% endif %}</td><td class="r">{{ '%.0f'|format(o.qty or 0) }}</td><td class="r">{{ '%.1f'|format(o.box or 0) }}</td>
+    <td><span class="badge st-{{ o.status }}">{{ ORDER_STATUS_MAP[o.status] }}</span> <small class="muted">{{ (o.updated_at or '')[5:16] }}</small></td>
+    <td>{% if o.eta_at and o.status in ('center_arrived','shipped') %}<b>{{ o.eta_at[11:16] }}</b>{% endif %}</td>
+    <td class="muted">{{ o.delivered_at or '' }}</td></tr>
+  {% else %}<tr><td colspan="9" class="muted">조건에 맞는 오더가 없습니다.</td></tr>{% endfor %}
+</table>
+</section>
+{% endblock %}

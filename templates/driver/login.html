@@ -1,0 +1,16 @@
+{% extends "bare.html" %}
+{% block title %}기사 접속{% endblock %}
+{% block bodyclass %}login-page{% endblock %}
+{% block content %}
+<div class="login-box">
+  <img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo">
+  <h1>{{ setting('shipper_name') }} 배송 기사 접속</h1>
+  <p class="muted small">배차 담당자에게 받은 <b>링크</b>를 열면 바로 들어옵니다.<br>링크가 없으면 아래에 차량번호와 휴대폰 뒷자리를 입력하세요.</p>
+  <form method="post" class="stack">
+    <label>차량번호 <input name="plate" placeholder="예) 12가3456" required autofocus autocomplete="off" inputmode="text"></label>
+    <label>휴대폰 뒷 4자리 <input name="last4" placeholder="예) 1234" required maxlength="4" pattern="\d{4}" inputmode="numeric" autocomplete="off"></label>
+    <button class="btn primary big">들어가기</button>
+  </form>
+  <p class="muted small" style="margin:16px 0 0">오늘(전후 1일) 배차가 있는 차량만 들어올 수 있습니다. 5회 틀리면 10분간 잠깁니다.</p>
+</div>
+{% endblock %}

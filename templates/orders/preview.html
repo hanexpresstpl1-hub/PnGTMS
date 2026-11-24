@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}업로드 검증{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1><a class="back" href="{{ url_for('orders.upload') }}">&larr;</a>업로드 검증 <small>{{ filename }}</small></h1><div class="sub">시트 {{ parsed.sheet }} · 헤더 {{ parsed.header_row }}행 · 확정 전에는 아무것도 저장되지 않습니다</div></div></div>
+{% if parsed.error %}<div class="flash error">{{ parsed.error }}</div>{% endif %}
+<div class="grid2">
+  <section class="panel">
+    <h2>컬럼 인식</h2>
+    <table class="tbl small">
+      {% for f, lab in labels.items() %}<tr><th style="width:120px">{{ lab }}</th><td>{% if parsed.colmap.get(f) %}<b>{{ parsed.colmap[f] }}</b>{% else %}<span class="{{ 'bad' if f in parsed.missing else 'muted' }}">{{ '없음 (필수)' if f in parsed.missing else '없음' }}</span>{% endif %}</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="panel">
+    <h2>요약</h2>
+    <div class="cards mini">
+      <div class="card"><div class="n">{{ summary.total }}</div><div class="l">행</div></div>
+      <div class="card"><div class="n">{{ summary.orders }}</div><div class="l">오더</div></div>
+      <div class="card ok"><div class="n">{{ summary.ok }}</div><div class="l">정상 행</div></div>
+      <div class="card {{ 'err' if summary.error }}"><div class="n">{{ summary.error }}</div><div class="l">오류 행</div></div>
+    </div>
+    {% if summary.unknown_store %}<p class="bad"><b>미등록 납품처 {{ summary.unknown_store|length }}</b>: {{ summary.unknown_store|join(', ') }} <a class="btn xs" href="{{ url_for('masters.list_kind', kind='stores') }}" target="_blank">납품처 마스터</a></p>{% endif %}
+    {% if summary.unknown_item %}<p class="bad"><b>미등록 상품 {{ summary.unknown_item|length }}</b>: {{ summary.unknown_item|join(', ') }} <a class="btn xs" href="{{ url_for('masters.list_kind', kind='items') }}" target="_blank">상품 마스터</a></p>{% endif %}
+    <form method="post" action="{{ url_for('orders.upload_confirm') }}" class="stack">
+      <input type="hidden" name="token" value="{{ token }}">
+      {% set first = summary.groups[0] if summary.groups else none %}
+      <label>이번 업로드 납품일의 직송 기준 PLT <small class="muted">(비우면 {{ '당일 기준 ' ~ first.thr if first and first.thr_src=='day' else '기본값 ' ~ summary.rule.thr }} 적용 · 입력하면 해당 납품일 기준으로 저장되고 아래 판정이 그 값으로 다시 계산됩니다)</small>
+        <input name="thr" type="number" step="any" placeholder="{{ first.thr if first else summary.rule.thr }}" style="width:140px"></label>
+      {% if summary.error %}
+      <label class="radio"><input type="radio" name="mode" value="skip" checked> 정상 행만 등록하고 오류 행은 제외</label>
+      <label class="radio"><input type="radio" name="mode" value="keep"> 오류 행도 '오류' 상태 오더로 저장(마스터 보완 후 처리)</label>
+      {% endif %}
+      <button class="btn primary big" {{ 'disabled' if not summary.ok and not summary.error }}>오더 {{ summary.orders }}건 등록 확정</button>
+    </form>
+  </section>
+</div>
+<section class="panel" style="margin-top:18px">
+<h2>일자 + 납품처별 PLT 합계와 직송/RDC 예상 판정
+  <small>{% if summary.rule.mode=='plt' %}합계가 그날 기준 PLT 이상이면 직송, 미만이면 RDC(거점). 기준은 날짜마다 담당자가 바꿀 수 있고(분리 · 양식 화면), 확정 후에도 납품처별로 직접 전환할 수 있습니다{% else %}납품처 마스터 유형 고정{% endif %} · 강제 유형 우선</small></h2>
+<table class="tbl small">
+  <tr><th>납품일</th><th>납품처</th><th class="r">오더</th><th class="r">라인</th><th class="r">이번 업로드 PLT</th><th class="r">기존 등록 PLT</th><th class="r">합계 PLT</th><th class="r">기준 PLT</th><th>판정</th><th>거점</th><th>근거</th></tr>
+  {% for g_ in summary.groups %}
+  <tr class="{{ 'row-err' if g_.dtype=='error' }}">
+    <td class="mono">{{ g_.date }}</td><td><b>{{ g_.store_name }}</b> <small class="muted">{{ g_.store_code }}</small></td><td class="r">{{ g_.orders }}</td><td class="r">{{ g_.lines }}{% if g_.errors %} <small class="bad">(오류 {{ g_.errors }})</small>{% endif %}</td>
+    <td class="r">{{ '%.2f'|format(g_.plt) }}</td><td class="r muted">{{ '%.2f'|format(g_.existing_plt) }}{% if g_.existing_cnt %} <small>({{ g_.existing_cnt }}건)</small>{% endif %}</td><td class="r"><b>{{ '%.2f'|format(g_.total_plt) }}</b></td>
+    <td class="r">{{ g_.thr|round(2) }} <small class="muted">{{ '당일' if g_.thr_src=='day' else '기본' }}</small></td>
+    <td>{% if g_.dtype=='error' %}<span class="badge st-error">보류</span>{% else %}<span class="badge {{ 'sh-assigned' if g_.dtype=='direct' else 'st-gaon' }}">{{ DTYPE_MAP[g_.dtype] }}</span>{% endif %}</td>
+    <td>{{ g_.hub_name }}</td><td class="muted small">{{ g_.note }}</td>
+  </tr>
+  {% else %}<tr><td colspan="11" class="muted">매핑된 납품처가 없습니다.</td></tr>{% endfor %}
+</table>
+<h2>행별 검증 결과</h2>
+<table class="tbl small">
+  <tr><th>엑셀행</th><th>오더번호</th><th>납품처코드</th><th>납품처</th><th>납품일</th><th>상품코드</th><th>상품명</th><th class="r">수량</th><th>단위</th><th class="r">BOX</th><th class="r">PLT</th><th>검증</th></tr>
+  {% for r in rows %}
+  <tr class="{{ 'row-err' if r.errors }}">
+    <td class="muted">{{ r.row }}</td><td>{{ r.order_no }}</td><td>{{ r.store_code }}</td><td>{{ r.store.name if r.store else r.store_name }}</td>
+    <td class="mono">{{ r.delivery_date or r.delivery_date_raw }}</td><td>{{ r.item_code }}</td><td>{{ r.item.name if r.item else r.item_name }}</td>
+    <td class="r">{{ r.qty if r.qty is not none else r.qty_raw }}</td><td>{{ r.unit or '' }}</td>
+    <td class="r">{{ '%.1f'|format(r.box) if r.box is not none else '' }}</td><td class="r">{{ '%.2f'|format(r.plt) if r.plt is not none else '' }}</td>
+    <td>{% if r.errors %}<span class="bad">{{ r.errors|join(', ') }}</span>{% else %}<span class="good">정상</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</section>
+{% endblock %}

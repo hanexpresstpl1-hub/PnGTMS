@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}반품 {{ r.return_no }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1><a class="back" href="{{ url_for('returns.index') }}">&larr;</a>반품 {{ r.return_no }} <span class="badge rt-{{ r.status }}">{{ RETURN_STATUS_MAP[r.status] }}</span></h1>
+  <div class="sub">{{ r.store_name }} · 등록 {{ r.request_date }} · 희망 회수 {{ r.pickup_date or '미정' }}</div></div></div>
+<div class="grid2">
+  <section class="panel">
+    <h2>기본 정보</h2>
+    <dl class="kv">
+      <dt>납품처</dt><dd><b>{{ r.store_name }}</b> <small class="muted">{{ r.store_pg_code }}</small><br><small>{{ r.address or '' }}</small></dd>
+      <dt>거점</dt><dd>{{ r.hub_name or '미지정' }} <small class="muted">{{ r.hub_email or '' }}</small></dd>
+      <dt>수량</dt><dd><b>{{ '%.1f'|format(r.box or 0) }} BOX</b>{% if r.qty %} · {{ '%.0f'|format(r.qty) }} EA{% endif %}</dd>
+      <dt>사유</dt><dd>{{ r.reason or '-' }} {% if r.memo %}<small class="muted">· {{ r.memo }}</small>{% endif %}</dd>
+      <dt>배차</dt><dd>{{ r.plate or '-' }} {{ r.driver_name or '' }} {{ r.driver_phone or '' }} {{ ('· ' ~ r.carrier) if r.carrier }}</dd>
+      <dt>회수 / 입고</dt><dd>{{ r.collected_at or '-' }} / {{ r.received_at or '-' }}{% if r.settled_month %} · 정산 {{ r.settled_month }}{% endif %}</dd>
+    </dl>
+    {% if items %}<h2>상품 내역</h2>
+    <table class="tbl small"><tr><th>상품코드</th><th>상품명</th><th class="r">EA</th><th class="r">BOX</th><th>사유</th></tr>
+      {% for i in items %}<tr><td>{{ i.item_pg_code }}</td><td>{{ i.item_name }}</td><td class="r">{{ '%.0f'|format(i.qty or 0) }}</td><td class="r">{{ '%.1f'|format(i.box or 0) }}</td><td>{{ i.reason or '' }}</td></tr>{% endfor %}</table>{% endif %}
+    {% if user.role in ('admin','center','carrier') %}
+    <h2>처리</h2>
+    <div class="stack">
+      {% if r.status in ('registered','mailed') %}
+      <form method="post" action="{{ url_for('returns.assign', rid=r.id) }}" class="inline"><input name="plate" placeholder="차량번호" style="width:110px" required><input name="driver_name" placeholder="기사" style="width:80px"><input name="driver_phone" placeholder="휴대폰" style="width:120px"><input name="carrier" placeholder="운송사" style="width:90px" value="SAMMI"><input type="date" name="pickup_date" value="{{ r.pickup_date or '' }}"><button class="btn sm primary">배차</button></form>
+      {% endif %}
+      {% if r.status=='assigned' %}<form method="post" action="{{ url_for('returns.status', rid=r.id) }}" class="inline"><input type="hidden" name="status" value="collected"><input name="box" type="number" step="any" placeholder="실제 BOX" style="width:100px" value="{{ r.box }}"><input name="note" placeholder="메모"><button class="btn sm ok">회수 완료</button></form>{% endif %}
+      {% if r.status=='collected' %}<form method="post" action="{{ url_for('returns.status', rid=r.id) }}" class="inline"><input type="hidden" name="status" value="received"><input name="note" placeholder="입고 메모"><button class="btn sm ok">센터 입고확인</button></form>{% endif %}
+      {% if r.status not in ('settled','cancelled') %}<form method="post" action="{{ url_for('returns.status', rid=r.id) }}" class="inline" onsubmit="return confirm('반품을 취소할까요?')"><input type="hidden" name="status" value="cancelled"><input name="note" placeholder="취소 사유"><button class="btn sm danger">취소</button></form>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>거점 안내 메일</h2>
+    {% for m in mails %}
+    <div class="leg"><div class="leg-head"><b>{{ m.created_at }}</b> <span class="badge {{ 'sh-delivered' if m.status=='sent' else 'sh-planned' if m.status=='failed' else 'sh-assigned' }}">{{ {'sent':'발송','queued':'대기(복사)','failed':'실패'}[m.status] }}</span> <small class="muted">→ {{ m.to_addr or '주소 없음' }}</small></div>
+      <div class="small" style="margin-top:6px"><b>{{ m.subject }}</b></div><pre class="small" style="white-space:pre-wrap;background:#fff;border:1px solid var(--line);padding:10px;border-radius:8px;margin:6px 0 0;font-family:inherit">{{ m.body }}</pre>{% if m.error %}<div class="bad small">{{ m.error }}</div>{% endif %}</div>
+    {% else %}<p class="muted small">아직 안내 메일이 없습니다. 목록에서 선택해 "거점 안내 메일"을 누르세요.</p>{% endfor %}
+    <h2>이력</h2>
+    <ul class="timeline">{% for e in events %}<li><span class="t">{{ e.at }} · {{ e.user_name or '시스템' }}</span><span class="badge rt-{{ e.status }}">{{ RETURN_STATUS_MAP.get(e.status, e.status) }}</span> {{ e.note or '' }}</li>{% endfor %}</ul>
+  </section>
+</div>
+{% endblock %}
