@@ -8,6 +8,10 @@ P&G 블루(#003DA5) 기준 색, 네이비 사이드바 + 상단바 레이아웃,
 모든 화면은 `templates/base.html`(사이드바 레이아웃) 또는 `templates/bare.html`(로그인 · 기사 접속) 위에 올라가고, 스타일은 `static/style.css` 한 파일입니다.
 기사 링크 화면은 사이드바 없는 모바일 레이아웃입니다.
 
+## 배포(Lightsail)
+
+서버 설치·갱신 절차는 deploy/README.md 참고. 시연 서버: https://pg.3-39-129-208.sslip.io (설치 후).
+
 ## 실행
 
 - `실행.bat` 더블클릭 (또는 `py app.py`) → http://127.0.0.1:5070

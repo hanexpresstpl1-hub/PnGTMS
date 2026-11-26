@@ -74,4 +74,5 @@ if __name__ == "__main__":
     if os.environ.get("PGPORTAL_NOBROWSER") != "1" and "--no-browser" not in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open("http://127.0.0.1:%d" % PORT)).start()
     # 외부(P&G) 접속은 Lightsail 배포 시 리버스 프록시(HTTPS) 뒤에서 host=0.0.0.0 으로 올린다.
-    app.run(host=os.environ.get("PGPORTAL_HOST", "127.0.0.1"), port=PORT, debug=False)
+    host = "0.0.0.0" if "--lan" in sys.argv else os.environ.get("PGPORTAL_HOST", "127.0.0.1")  # --lan: 같은 네트워크의 다른 PC·폰에서 접속 허용
+    app.run(host=host, port=PORT, debug=False, threaded=True)
