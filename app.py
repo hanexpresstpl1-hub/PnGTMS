@@ -71,6 +71,12 @@ def create_app():
                 "DTYPE_MAP": dbm.DTYPE_MAP, "RETURN_STATUS_MAP": dbm.RETURN_STATUS_MAP, "DRIVER_ACTIONS": dbm.DRIVER_ACTIONS, "NEXT_ACTION": dbm.NEXT_ACTION,
                 "setting": dbm.setting, "user": g.get("user"), "link": g.get("link"), "eta_left": eta_left}
 
+    @app.route("/healthz")
+    def healthz():
+        """배포 확인용: 서버가 돌고 있는 커밋(배포 스크립트가 data/version.txt에 기록)."""
+        vf = os.path.join(DATA, "version.txt")
+        return (open(vf, encoding="utf-8").read().strip() if os.path.exists(vf) else "ok") + chr(10), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
     @app.route("/")
     def index():
         from core.auth import home_for

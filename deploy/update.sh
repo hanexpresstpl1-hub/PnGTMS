@@ -5,6 +5,7 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$APP_DIR"
 git fetch -q origin && git reset -q --hard origin/main
 .venv/bin/pip install -q -r requirements.txt
+git log --format="%h %ci %s" -1 > data/version.txt
 sudo systemctl restart pg-portal
 # 자동 갱신 cron (없으면 설치)
 CRON_FILE=/etc/cron.d/pg-portal-autopull
