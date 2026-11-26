@@ -93,8 +93,12 @@ fi
 import sqlite3; db=sqlite3.connect("$APP_DIR/data/portal.db")
 db.execute("INSERT INTO settings(key,value) VALUES('public_url','https://$DOMAIN') ON CONFLICT(key) DO UPDATE SET value=excluded.value"); db.commit(); print("public_url = https://$DOMAIN")
 PY
+# 자동 갱신 cron: 2분마다 GitHub main 확인 → 새 커밋이면 update.sh
+echo "*/2 * * * * $USER_NAME /bin/bash $APP_DIR/deploy/autopull.sh" | sudo tee /etc/cron.d/pg-portal-autopull >/dev/null
+sudo chmod 644 /etc/cron.d/pg-portal-autopull
 sleep 1
 curl -s -o /dev/null -w "로컬 응답: %{http_code}\n" http://127.0.0.1:$PORT/login
 echo
 echo "완료: https://$DOMAIN  (관리자 1111/1111 — 외부 공유 전 관리 > 사용자에서 비밀번호 변경)"
-echo "갱신: cd $APP_DIR && bash deploy/update.sh"
+echo "자동 갱신: GitHub main 에 푸시하면 2분 안에 서버가 스스로 갱신·재시작합니다 (로그 $APP_DIR/data/autopull.log)"
+echo "수동 갱신: cd $APP_DIR && bash deploy/update.sh"

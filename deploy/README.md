@@ -12,9 +12,11 @@ curl -fsSL https://raw.githubusercontent.com/hanexpresstpl1-hub/PnGTMS/main/depl
 - 만드는 것: `~/pg_portal`(git clone), `.venv`, systemd `pg-portal`(gunicorn 127.0.0.1:5070), nginx vhost, certbot 인증서(HTTPS 자동 리다이렉트), 설정 `public_url=https://<도메인>`.
 - Lightsail 방화벽에서 80·443이 열려 있어야 한다(UnileverVA는 이미 열려 있음).
 
-## 갱신
+## 갱신 (자동)
 
-로컬에서 수정 → `git push` → 서버에서:
+서버의 cron(`/etc/cron.d/pg-portal-autopull`)이 2분마다 GitHub main을 확인해 새 커밋이 있으면 `deploy/update.sh`(pull → pip → 서비스 재시작)를 실행한다. 로컬에서 수정해 `git push`만 하면 2분 안에 반영된다. 로그는 `~/pg_portal/data/autopull.log`.
+
+수동으로 바로 반영하려면 서버에서:
 
 ```
 cd ~/pg_portal && bash deploy/update.sh
