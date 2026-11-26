@@ -2,6 +2,7 @@
 # 자동 갱신: GitHub origin/main 에 새 커밋이 있으면 update.sh 실행. cron(/etc/cron.d/pg-portal-autopull)이 2분마다 호출.
 # 로그: ~/pg_portal/data/autopull.log
 set -uo pipefail
+export TZ=Asia/Seoul
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOCK="/tmp/pg-portal-autopull.lock"
 LOG="$APP_DIR/data/autopull.log"

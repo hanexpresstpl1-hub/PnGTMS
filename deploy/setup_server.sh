@@ -19,6 +19,8 @@ PORT=5070
 USER_NAME="$(whoami)"
 
 echo "== [1/6] 패키지"
+sudo timedatectl set-timezone Asia/Seoul 2>/dev/null || true
+export TZ=Asia/Seoul
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx certbot python3-certbot-nginx python3-venv python3-pip git >/dev/null
 
@@ -85,7 +87,8 @@ fi
 echo "== [6/6] 앱 설정"
 if [ "$MODE" = "demo" ]; then
   sudo systemctl stop $SVC
-  PGPORTAL_DATA=$APP_DIR/data .venv/bin/python tools/seed_demo_1126.py "$DEMO_DATE" | tail -3
+  TZ=Asia/Seoul PGPORTAL_DATA=$APP_DIR/data .venv/bin/python tools/seed_demo_1126.py "$DEMO_DATE" | tail -3
+  echo "$DEMO_DATE $(date +%s)" > "$APP_DIR/data/last_reseed.txt"
   sudo systemctl start $SVC
 fi
 # 기사 링크·QR에 쓸 외부 주소
