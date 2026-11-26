@@ -3,7 +3,7 @@
 {% block bodyclass %}login-page{% endblock %}
 {% block content %}
 <div class="login-box">
-  <img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo">
+  <div class="logos"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo-hanex"><span class="x">×</span><img src="{{ url_for('static', filename='img/pg_logo.svg') }}" alt="P&amp;G" class="logo-pg"></div>
   <h1>{{ setting('shipper_name') }} 수주·배송 포털</h1>
   <p class="muted">{{ setting('company') }} {{ setting('team') }} · 운영 실행 플랫폼</p>
   <form method="post" class="stack">

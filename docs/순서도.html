@@ -12,7 +12,8 @@
   .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--pg);background:#E8F0FF;padding:4px 10px;border-radius:999px;margin-bottom:8px}
   h1{font-size:26px;margin:0;font-weight:800;letter-spacing:-.03em}
   .sub{color:var(--muted);font-size:13px;margin-top:6px}
-  .meta{text-align:right;color:var(--muted);font-size:12px;line-height:1.6}
+  .meta{text-align:right;color:var(--muted);font-size:12px;line-height:1.6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .meta .logos{display:flex;align-items:center;gap:12px}.meta .logos img{height:34px}.meta .logos img.pg{height:46px}.meta .logos span{color:#94A3B8;font-weight:600}
   .meta b{color:var(--ink);font-size:13px}
   svg{display:block}
   .legend{display:flex;gap:10px;font-size:12px;color:var(--ink2);margin-top:12px;align-items:center;flex-wrap:wrap}
@@ -26,7 +27,7 @@
     <div><div class="tag">P&amp;G × HANEX · OPERATION &amp; TMS</div>
       <h1>P&amp;G 수주 · 배송 포털 업무 순서도</h1>
       <div class="sub">SAP 오더 접수 → 검증 → 센터 × 직송/RDC 4분리와 양식 → 가온 등록 → 자동배차와 적재율 → 기사 TMS(GPS, 예상도착, 점포 SMS) → 추적 · 조회, 그리고 반품 프로세스</div></div>
-    <div class="meta"><b>한익스프레스 TPL2팀</b><br>2026. 11 · TF 협의용</div>
+    <div class="meta"><div class="logos"><img src="../static/img/hanexpress.png" alt="HanExpress"><span>×</span><img src="../static/img/pg_logo.svg" alt="P&amp;G" class="pg"></div><div><b>한익스프레스 TPL2팀</b><br>2026. 11 · TF 협의용</div></div>
   </div>
   <svg id="chart" xmlns="http://www.w3.org/2000/svg"></svg>
   <div class="legend">

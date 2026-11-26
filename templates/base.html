@@ -27,7 +27,10 @@
 <div class="app">
 {% if user %}
 <aside class="sidebar" id="sidebar">
-  <div class="sb-brand"><div class="sb-logo"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt=""></div><div><b>{{ setting('shipper_name') }} 수주·배송 포털</b><small>{{ setting('company') }} {{ setting('team') }}</small></div></div>
+  <div class="sb-brand">
+    <div class="sb-logos"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}"><span class="x">×</span><img src="{{ url_for('static', filename='img/pg_logo.svg') }}" alt="P&amp;G" class="pg"></div>
+    <div class="sb-title"><b>{{ setting('shipper_name') }} 수주·배송 포털</b><small>{{ setting('company') }} {{ setting('team') }} · P&amp;G 운영 협업</small></div>
+  </div>
   <nav class="sb-nav">
     {% if user.role in ('admin','center') %}
       <div class="sb-group">운영</div>
@@ -75,7 +78,7 @@
 </div>
 {% elif link %}
 <div class="main">
-  <header class="m-top-bar"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt=""><span class="t">{{ setting('shipper_name') }} 배송</span><span class="who"><b>{{ link.driver_name }}</b> · {{ link.plate }} · {{ link.date[5:] }} · <a href="{{ url_for('driver.logout') }}">나가기</a></span></header>
+  <header class="m-top-bar"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt=""><img src="{{ url_for('static', filename='img/pg_logo.svg') }}" alt="P&amp;G" class="pg"><span class="t">{{ setting('shipper_name') }} 배송</span><span class="who"><b>{{ link.driver_name }}</b> · {{ link.plate }} · {{ link.date[5:] }} · <a href="{{ url_for('driver.logout') }}">나가기</a></span></header>
   <main class="wrap">
     {% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}{% endwith %}
     {% block content_link %}{{ self.content() }}{% endblock %}

@@ -3,7 +3,7 @@
 {% block bodyclass %}login-page{% endblock %}
 {% block content %}
 <div class="login-box">
-  <img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo">
+  <div class="logos"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo-hanex"><span class="x">×</span><img src="{{ url_for('static', filename='img/pg_logo.svg') }}" alt="P&amp;G" class="logo-pg"></div>
   <h1>{{ setting('shipper_name') }} 배송 기사 접속</h1>
   <p class="muted small">배차 담당자에게 받은 <b>링크</b>를 열면 바로 들어옵니다.<br>링크가 없으면 아래에 차량번호와 휴대폰 뒷자리를 입력하세요.</p>
   <form method="post" class="stack">

@@ -3,7 +3,7 @@
 {% block bodyclass %}login-page{% endblock %}
 {% block content %}
 <div class="login-box">
-  <img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo">
+  <div class="logos"><img src="{{ url_for('static', filename='img/hanexpress.png') }}" alt="{{ setting('company') }}" class="logo-hanex"><span class="x">×</span><img src="{{ url_for('static', filename='img/pg_logo.svg') }}" alt="P&amp;G" class="logo-pg"></div>
   <h1>링크를 열 수 없습니다</h1>
   <p class="bad" style="margin:10px 0 18px">{{ msg }}</p>
   <a class="btn primary big" href="{{ url_for('driver.login') }}">차량번호로 들어가기</a>
