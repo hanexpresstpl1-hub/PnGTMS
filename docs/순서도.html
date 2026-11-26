@@ -47,7 +47,7 @@ const LANES = [
   {name:"가온 ERP",        h:118},
   {name:"배차 · 출고센터",  h:118},
   {name:"기사 TMS (직송)",  h:118},
-  {name:"RDC 경유 (간선)",  h:118},
+  {name:"RDC (거점)",       h:118},
   {name:"반품",            h:118},
 ];
 const LABEL_W = 132, COL_W = 158, BOX_W = 134, BOX_H = 66, PAD_TOP = 34, COLS = 11;
@@ -78,8 +78,8 @@ const NODES = [
   {id:"J", lane:2, col:6, kind:"human", text:["실패 사유 확인","미등록, 오류 수정 후","재시도"]},
   {id:"T", lane:2, col:9, kind:"future", text:["운임 산출, 정산","월 마감 (2차)"]},
 
-  {id:"K", lane:3, col:5, kind:"auto",  text:["자동배차","PLT, CBM 적재 기준","적재율(VFR) 관리"]},
-  {id:"N", lane:3, col:6, kind:"decision", text:["유형?"]},
+  {id:"K", lane:3, col:5, kind:"auto",  text:["자동배차 (직송)","PLT, CBM 적재 기준","적재율(VFR) 관리"]},
+  {id:"N", lane:3, col:6, kind:"decision", text:["직송?"]},
   {id:"L", lane:3, col:7, kind:"auto",  text:["기사 링크 발급","카톡, 문자 복사 / QR","(가입 없음)"]},
 
   {id:"M", lane:4, col:7, kind:"human", text:["링크 열기, 센터 도착","GPS 전송","예상도착 계산"]},
@@ -87,8 +87,7 @@ const NODES = [
   {id:"M3",lane:4, col:9, kind:"human", text:["점포 도착 (버튼)","GPS 반경 검증","점포 SMS (도착)"]},
   {id:"O", lane:4, col:10, kind:"human", text:["배송 완료","인수자, 인수증 사진"]},
 
-  {id:"P", lane:5, col:6, kind:"human", text:["간선 출고","센터 → 거점센터","(기사 앱 없음)"]},
-  {id:"Q", lane:5, col:7, kind:"auto",  text:["거점 출고 완료 처리","배차 화면에서 일괄","배송완료로 간주"]},
+  {id:"P", lane:5, col:6, kind:"auto",  text:["RDC 분리 완료","GAON 양식, 피킹리스트 전달","(이후 운송은 포털 밖)"]},
 
   {id:"RA", lane:6, col:0, kind:"human", text:["6-1 반품 오더 등록","P&G 담당자가 포털에","점포, BOX, 사유"]},
   {id:"RB", lane:6, col:2, kind:"auto",  text:["6-2 거점 안내 메일","RDC별 묶어 발송","(SMTP / 본문 복사)"]},
@@ -112,10 +111,8 @@ const EDGES = [
   {f:"N", t:"L", path:"h", label:"직송"},
   {f:"L", t:"M", path:"v"},
   {f:"M", t:"M2", path:"h"}, {f:"M2", t:"M3", path:"h"}, {f:"M3", t:"O", path:"h"},
-  {f:"N", t:"P", path:"v", label:"RDC 경유"},
-  {f:"P", t:"Q", path:"h"},
+  {f:"N", t:"P", path:"v", label:"RDC"},
   {f:"O", t:"R", path:"v"},
-  {f:"Q", t:"R", path:"around"},
   {f:"R", t:"S", path:"v"},
   {f:"R", t:"T", path:"lhv", dashed:true},
   {f:"RA", t:"RB", path:"h"}, {f:"RB", t:"RC", path:"h"}, {f:"RC", t:"RD", path:"h"},

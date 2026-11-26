@@ -72,10 +72,6 @@ def assign():
                 revoke_if_unused(did, vid, date)
         flash("%d건 배차를 해제했습니다.%s 남은 배차가 없는 기사 링크는 무효화됐습니다." % (done, (" 이미 진행 중인 %d건은 해제할 수 없어 건너뜀." % skipped) if skipped else ""), "ok" if done else "warn")
         return redirect(back)
-    if action == "ship_hub":
-        done, skipped = service.ship_hub(ids)
-        flash("거점 출고 완료 %d건 처리.%s" % (done, (" 거점경유가 아니거나 이미 완료된 %d건은 건너뜀." % skipped) if skipped else ""), "ok" if done else "error")
-        return redirect(back)
     # 배정: 차량번호·기사명·전화 직접 입력(없는 차량·기사는 자동 등록)
     plate = request.form.get("plate", "").strip()
     dname = request.form.get("driver_name", "").strip()
@@ -92,10 +88,10 @@ def assign():
         from core.db import execute
         execute("UPDATE vehicles SET driver_id=? WHERE id=?", (did, vid))
     service.assign(ids, vid, did, request.form.get("note") or None)
-    # 직송 건이 있으면 기사 링크 발급
+    # 기사 링크 발급(배차는 직송만이므로 모든 건 대상)
     issued = []
     if vid and did:
-        dates = {s["planned_date"] for s in q("SELECT DISTINCT s.planned_date FROM shipments s JOIN orders o ON o.id=s.order_id WHERE s.id IN (%s) AND o.delivery_type='direct'" % ",".join("?" * len(ids)), ids)}
+        dates = {s["planned_date"] for s in q("SELECT DISTINCT planned_date FROM shipments WHERE id IN (%s)" % ",".join("?" * len(ids)), ids)}
         for date in dates:
             issued.append(link_url(issue_link(did, vid, date)["token"]))
     msg = "%d건을 배차했습니다." % len(ids)
@@ -113,8 +109,7 @@ def auto():
     """자동배차: 미배차 직송 건을 PLT·CBM 적재 기준으로 차량에 채워 배정하고 기사 링크를 발급한다."""
     date = request.form.get("date") or dt.date.today().strftime("%Y-%m-%d")
     center = request.form.get("center") or None
-    include_hub = request.form.get("include_hub") == "1"
-    res = auto_plan(date, center=center, include_hub=include_hub)
+    res = auto_plan(date, center=center)
     if not res["assign"]:
         flash(res["msg"], "warn")
         return redirect(url_for("dispatch.board", date=date))
@@ -126,7 +121,7 @@ def auto():
         v = q("SELECT driver_id FROM vehicles WHERE id=?", (vid,), one=True)
         did = v["driver_id"] if v else None
         service.assign(sids, vid, did, "자동배차")
-        if did and any(q("SELECT 1 FROM shipments s JOIN orders o ON o.id=s.order_id WHERE s.id=? AND o.delivery_type='direct'", (sid,), one=True) for sid in sids):
+        if did:
             links.append(link_url(issue_link(did, vid, date)["token"]))
     parts = ["%s %d건 %.1fPLT(%d%%)" % (s["vehicle"]["plate"], s["cnt"], s["plt"], round(s["vfr"] * 100)) for s in res["summary"]]
     msg = "자동배차: %s — %s" % (res["msg"], ", ".join(parts))

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}분리 · 양식{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>오더 분리 · 양식 <small>{{ date }}</small></h1><div class="sub">출고센터(천안 · 안성) × 유형(직송 · RDC) 4분리 → GAON 입고예정 · 수주 양식 → 현장 피킹리스트 → 현대글로비스 작업지시</div></div>
+<div class="page-head"><div><h1>오더 분리 · 양식 <small>{{ date }}</small></h1><div class="sub">출고센터(천안 · 안성) × 유형(직송 · RDC) 4분리 → GAON 입고예정 · 수주 양식 → 현장 피킹리스트 → 현대글로비스 작업지시. 직송은 배차 · 기사 TMS로 이어지고, RDC는 여기까지입니다</div></div>
   <form method="get" class="inline"><label class="small muted">납품일 <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()"></label></form></div>
 {% if errors %}<div class="flash warn">오류 오더 {{ errors }}건은 분리에서 제외됐습니다. <a href="{{ url_for('orders.list_orders', date_from=date, date_to=date, status='error') }}">오류 오더 보기</a></div>{% endif %}
 {% if orphan %}<div class="flash error">출고센터가 지정되지 않은 오더 {{ orphan|length }}건: {% for o in orphan[:8] %}<a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or o.id }}</a> {% endfor %}— 납품처 마스터의 출고센터를 채우거나 엑셀에 출고센터 열을 넣으세요.</div>{% endif %}

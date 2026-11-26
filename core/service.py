@@ -268,7 +268,7 @@ def apply_route(pairs):
         manual = next((o["route_manual"] for o in orders if o["route_manual"] in ("direct", "hub")), None)
         dtype, hub_id, note = decide_route(store, total, rule, manual)
         for o in orders:
-            if o["status"] not in ("received", "gaon", "error"):
+            if o["status"] not in ("received", "gaon", "error", "rdc"):
                 continue  # 배차 이후 단계는 건드리지 않음
             if o["status"] == "error" and dtype != "error":
                 execute("UPDATE orders SET status='received', error_msg=NULL WHERE id=?", (o["id"],))
@@ -288,14 +288,15 @@ def apply_route(pairs):
             if not same:
                 execute("DELETE FROM shipments WHERE order_id=? AND status='planned'", (o["id"],))
                 create_shipments(o["id"], dtype, hub_id, cnames.get(o["center_code"]) or setting("default_center_name", "한익 센터"), date, o["store_name"])
-                add_event(o["id"], o["status"], "유형 판정: " + note)
+                if not recompute_status(o["id"], "유형 판정: " + note):
+                    add_event(o["id"], o["status"], "유형 판정: " + note)
                 changed += 1
     return changed
 
 
 def reroute_all(date_from=None, date_to=None):
     """설정(기준 PLT 등)을 바꾼 뒤 배차 전 오더를 다시 판정."""
-    where, args = ["(status IN ('received','gaon') OR (status='error' AND error_msg LIKE '거점 미지정%'))", "store_id IS NOT NULL"], []
+    where, args = ["(status IN ('received','gaon','rdc') OR (status='error' AND error_msg LIKE '거점 미지정%'))", "store_id IS NOT NULL"], []
     if date_from:
         where.append("delivery_date>=?"); args.append(date_from)
     if date_to:
@@ -305,15 +306,12 @@ def reroute_all(date_from=None, date_to=None):
 
 
 def create_shipments(order_id, dtype, hub_id, center_name, date, store_name):
-    """직송 = 센터→납품처 1구간(기사 TMS 추적). 거점경유 = 센터→거점 간선 1구간만 두고, 출고 처리하면 완료로 간주한다."""
+    """직송만 운송 건(센터→납품처 1구간, 기사 TMS 추적)을 만든다. RDC(거점)는 분리까지만 하고 운송 건을 만들지 않는다."""
+    if dtype == "hub":
+        return
     con = get_db()
-    if dtype == "hub" and hub_id:
-        hub = q("SELECT name FROM hubs WHERE id=?", (hub_id,), one=True)
-        con.execute("INSERT INTO shipments(order_id,leg,from_name,to_name,hub_id,planned_date) VALUES(?,?,?,?,?,?)",
-                    (order_id, 1, center_name, hub["name"] if hub else "거점", hub_id, date))
-    else:
-        con.execute("INSERT INTO shipments(order_id,leg,from_name,to_name,planned_date) VALUES(?,?,?,?,?)",
-                    (order_id, 1, center_name, store_name, date))
+    con.execute("INSERT INTO shipments(order_id,leg,from_name,to_name,planned_date) VALUES(?,?,?,?,?)",
+                (order_id, 1, center_name, store_name, date))
     con.commit()
 
 
@@ -323,15 +321,21 @@ def recompute_status(order_id, note=""):
     o = q("SELECT * FROM orders WHERE id=?", (order_id,), one=True)
     if not o or o["status"] in ("cancelled", "error"):
         return False
+    if o["delivery_type"] == "hub":  # RDC는 분리가 끝. 운송 추적 없음
+        if o["status"] != "rdc":
+            set_status(order_id, "rdc", note)
+            return True
+        return False
     legs = q("SELECT * FROM shipments WHERE order_id=? AND status!='cancelled' ORDER BY leg", (order_id,))
     if not legs:
+        if o["status"] not in ("received", "gaon"):
+            set_status(order_id, "gaon" if o["gaon_status"] == "done" else "received", note)
+            return True
         return False
     last = legs[-1]
     first = legs[0]
     if last["status"] == "delivered":
         new = "delivered"
-    elif o["delivery_type"] == "hub" and first["status"] in ("at_center", "departed", "arrived"):
-        new = "delivered"  # 거점 물량은 센터 출고로 완료 간주
     elif first["status"] == "arrived":
         new = "store_arrived"
     elif first["status"] == "departed":
@@ -373,22 +377,6 @@ def unassign(shipment_ids):
         if s:
             recompute_status(s["order_id"], "배차 해제")
     return done, len(shipment_ids) - done
-
-
-def ship_hub(shipment_ids):
-    """거점경유 건 출고 처리: 간선 출발·완료 시각을 찍고 오더를 배송완료로 간주. 직송 건은 건너뛴다. 반환 (처리수, 건너뜀수)."""
-    done = skipped = 0
-    for sid in shipment_ids:
-        s = q("SELECT s.*, o.delivery_type, o.status order_status FROM shipments s JOIN orders o ON o.id=s.order_id WHERE s.id=?", (sid,), one=True)
-        if not s or s["delivery_type"] != "hub" or s["status"] in ("delivered", "cancelled") or s["order_status"] in ("cancelled", "error"):
-            skipped += 1
-            continue
-        t = now()
-        execute("UPDATE shipments SET status='delivered', departed_at=COALESCE(departed_at,?), delivered_at=? WHERE id=?", (t, t, sid))
-        if not recompute_status(s["order_id"], "거점 출고 완료 (%s행) — 거점 배송은 추적하지 않음" % s["to_name"]):
-            add_event(s["order_id"], "delivered", "거점 출고 완료 (%s행)" % s["to_name"])
-        done += 1
-    return done, skipped
 
 
 def advance_shipment(sid, action, lat=None, lng=None, accuracy=None):

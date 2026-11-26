@@ -195,6 +195,10 @@ with app.app_context():
             service.assign(sids, vid, v["driver_id"], "자동배차")
             issue_link(v["driver_id"], vid, DATE)
         print("자동배차(안성 직송):", res["msg"])
+        # 시연용: 용인흥덕점 1건은 미배차로 되돌려 둔다(자동배차·수동배차 시연)
+        left = q("SELECT s.id, s.driver_id, s.vehicle_id FROM shipments s JOIN orders o ON o.id=s.order_id WHERE o.order_no='PO26112610' AND s.planned_date=?", (DATE,), one=True)
+        if left:
+            service.unassign([left["id"]])
         # 천안센터: 직송 3건(대전·광주·해운대)은 수동 배차 → 글로비스 11톤, RDC 간선은 SAMMI 2.5톤/용차 3.5톤에 배정 후 출고 완료
         def ship_ids(where, args):
             return [r["id"] for r in q("SELECT s.id FROM shipments s JOIN orders o ON o.id=s.order_id WHERE s.planned_date=? AND " + where, [DATE] + args)]
@@ -209,14 +213,7 @@ with app.app_context():
             service.assign(sids, vid, vv["driver_id"], "자동배차")
             issue_link(vv["driver_id"], vid, DATE)
         print("자동배차(천안 직송):", res2["msg"])
-        hub_dj = ship_ids("o.delivery_type='hub' AND s.to_name='대전 RDC' AND s.status='planned'", [])
-        hub_other = ship_ids("o.delivery_type='hub' AND s.to_name!='대전 RDC' AND s.status='planned'", [])
-        if hub_dj:
-            service.assign(hub_dj, v["82다3001"]["id"], v["82다3001"]["driver_id"], "간선 · SAMMI")
-            service.ship_hub(hub_dj)
-        if hub_other:
-            service.assign(hub_other[:3], v["83라4001"]["id"], v["83라4001"]["driver_id"], "간선 · 용차")
-            # 나머지 RDC 간선은 미배차로 남겨 시연 때 자동배차(RDC 포함)로 처리
+        # RDC 오더는 분리까지만(운송 건 없음)
         # 기사 진행: 80가1001 첫 두 건 → 1건 배송완료(인수증), 1건 점포 도착 / 81나2001 → 센터 출발(이동 중, ETA) / 80가1002 → 센터 도착
         def legs_of(plate):
             return q("SELECT s.id, o.store_id, st.lat, st.lng, o.store_name FROM shipments s JOIN orders o ON o.id=s.order_id JOIN stores st ON st.id=o.store_id "

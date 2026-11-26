@@ -36,10 +36,8 @@ def vehicle_loads(date):
 def plan(date, center=None, include_hub=False, vehicle_ids=None):
     """배차안 계산(저장 안 함). 반환 {'assign': [(shipment_id, vehicle_id)], 'left': [shipment rows], 'summary': [...]}"""
     rate = _rate()
-    where = ["s.planned_date=?", "s.status='planned'", "o.status NOT IN ('cancelled','error')"]
+    where = ["s.planned_date=?", "s.status='planned'", "o.status NOT IN ('cancelled','error')", "o.delivery_type='direct'"]  # 배차는 직송만
     args = [date]
-    if not include_hub:
-        where.append("o.delivery_type='direct'")
     if center:
         where.append("COALESCE(o.center_code,'')=?"); args.append(center)
     cands = q("SELECT s.id sid, s.to_name, o.center_code, o.delivery_type, o.plt, o.cbm, o.box, o.store_name, h.name hub_name, h.region hub_region, "

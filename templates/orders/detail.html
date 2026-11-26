@@ -43,7 +43,7 @@
       {% if s.last_lat %}<div class="muted small">마지막 위치 {{ s.last_at }} · <a href="https://map.kakao.com/link/map/기사위치,{{ s.last_lat }},{{ s.last_lng }}" target="_blank">지도 보기</a></div>{% endif %}
       {% else %}<div class="muted small">{% if s.departed_at %}출고 {{ s.departed_at }}{% endif %} {% if s.delivered_at %}· 완료 처리 {{ s.delivered_at }}{% endif %}</div>{% endif %}
     </div>
-    {% else %}<p class="muted">운송 구간이 없습니다(오류 오더).</p>{% endfor %}
+    {% else %}<p class="muted">{% if o.delivery_type=='hub' %}RDC(거점) 오더는 분리와 GAON · 양식 전달까지만 포털에서 처리합니다. 거점 이후 운송은 추적하지 않습니다.{% else %}운송 구간이 없습니다(오류 오더).{% endif %}</p>{% endfor %}
     {% if pods %}
     <h2>인수증</h2>
     {% for p in pods %}<div class="pod small">{{ p.signed_at }} · 인수자 {{ p.receiver or '-' }} {{ p.note or '' }}

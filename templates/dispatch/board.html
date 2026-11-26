@@ -1,11 +1,10 @@
 {% extends "base.html" %}
 {% block title %}배차 · 적재율{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>배차 · 적재율 <small>{{ date }}</small></h1><div class="sub">총 {{ summary.total }}건 · 미배차 <b class="{{ 'bad' if summary.unassigned }}">{{ summary.unassigned }}</b> · {{ summary.box }}BOX · {{ summary.plt }}PLT</div></div>
+<div class="page-head"><div><h1>배차 · 적재율 <small>{{ date }}</small></h1><div class="sub">직송 {{ summary.total }}건 · 미배차 <b class="{{ 'bad' if summary.unassigned }}">{{ summary.unassigned }}</b> · {{ summary.box }}BOX · {{ summary.plt }}PLT · RDC 오더는 분리·양식까지만 처리하고 배차하지 않습니다</div></div>
   <div class="inline"><a class="btn" href="{{ url_for('split.glovis_xlsx', date=date) }}">글로비스 작업지시</a><a class="btn" href="{{ url_for('dispatch.vehicle_day', date=date) }}" target="_blank">차량별 배정표 · QR</a></div></div>
 <form class="filters" method="get">
   <label>납품일 <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()"></label>
-  <label>유형 <select name="dtype" onchange="this.form.submit()"><option value="">전체</option><option value="direct" {{ 'selected' if dtype=='direct' }}>직송</option><option value="hub" {{ 'selected' if dtype=='hub' }}>RDC(거점)</option></select></label>
   <label>보기 <select name="view" onchange="this.form.submit()"><option value="all" {{ 'selected' if view=='all' }}>전체</option><option value="unassigned" {{ 'selected' if view=='unassigned' }}>미배차</option><option value="assigned" {{ 'selected' if view=='assigned' }}>배차완료</option></select></label>
 </form>
 <div class="grid2" style="margin-bottom:14px">
@@ -14,7 +13,6 @@
     <form method="post" action="{{ url_for('dispatch.auto') }}" class="inline" onsubmit="return confirm('미배차 건을 자동으로 배정합니다. 결과는 아래 표에서 조정할 수 있습니다. 계속할까요?')">
       <input type="hidden" name="date" value="{{ date }}">
       <select name="center"><option value="">전체 센터</option>{% for c in centers %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}</select>
-      <label class="radio small"><input type="checkbox" name="include_hub" value="1"> RDC 간선 건 포함</label>
       <button class="btn primary">자동배차 실행</button>
     </form>
     <p class="muted small" style="margin:8px 0 0">차량 마스터의 적재 PLT · CBM이 있는 차량만 씁니다. 결과는 아래 표에서 배차 해제 · 재배정으로 조정하세요.</p>
@@ -46,7 +44,6 @@
     <input name="note" placeholder="메모" style="width:110px">
     <button class="btn primary" name="action" value="assign">선택 건 배차 + 링크 발급</button>
     <button class="btn ghost" name="action" value="unassign" onclick="return confirm('선택 건의 배차를 해제할까요?')">배차 해제</button>
-    <button class="btn ok" name="action" value="ship_hub" onclick="return confirm('선택한 RDC 건을 출고 완료(배송완료 간주)로 처리할까요?')" title="거점 물량은 센터 출고 시점에 완료로 간주하고 거점 배송은 추적하지 않습니다">RDC 출고 완료</button>
   </div>
   <p class="muted small" style="margin:4px 0 10px">차량번호 · 기사 · 전화를 입력하면 없는 차량 · 기사는 자동 등록되고, 직송 건에는 <b>기사 접속 링크</b>가 발급됩니다. 링크는 복사해 카톡 · 문자로 보내거나 배정표 QR로 전달하세요(가입 없음, 예비: 차량번호 + 휴대폰 뒷자리).</p>
   <section class="panel">
@@ -69,7 +66,7 @@
             <button type="button" class="btn xs ghost" onclick="renew({{ r.driver_id }},{{ r.vehicle_id }},'{{ r.planned_date }}')" title="이전 링크와 기기 묶음을 해제하고 새로 발급">재발급</button>
             <small class="{{ 'good' if l.first_open_at else 'muted' }}">{{ ('열람 ' ~ l.first_open_at[11:16]) if l.first_open_at else '미열람' }}{% if l.via=='plate' %} · 차량번호{% endif %}</small>
           {% else %}<button type="button" class="btn xs" onclick="renew({{ r.driver_id }},{{ r.vehicle_id }},'{{ r.planned_date }}')">링크 발급</button>{% endif %}
-        {% elif r.delivery_type=='hub' %}<small class="muted">RDC · 앱 없음</small>{% endif %}
+        {% endif %}
       </td>
       <td class="muted small">{{ r.note or '' }}</td>
     </tr>

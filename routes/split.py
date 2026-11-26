@@ -106,7 +106,7 @@ def manual():
     date, store_id, dtype = request.form.get("date"), request.form.get("store_id", type=int), request.form.get("dtype", "")
     if dtype not in ("direct", "hub", ""):
         abort(400)
-    execute("UPDATE orders SET route_manual=? WHERE store_id=? AND delivery_date=? AND status IN ('received','gaon','error')", (dtype or None, store_id, date))
+    execute("UPDATE orders SET route_manual=? WHERE store_id=? AND delivery_date=? AND status IN ('received','gaon','error','rdc')", (dtype or None, store_id, date))
     changed = service.apply_route({(store_id, date)})
     name = (q("SELECT name FROM stores WHERE id=?", (store_id,), one=True) or {"name": ""})["name"]
     flash("%s: %s → %d건 반영." % (name, {"direct": "직송 지정", "hub": "RDC 지정", "": "규칙으로 되돌림"}[dtype], changed), "ok")

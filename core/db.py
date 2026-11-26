@@ -137,7 +137,7 @@ DEFAULT_SETTINGS = {
 }
 
 ORDER_STATUS = [
-    ("received", "접수"), ("error", "오류"), ("gaon", "가온등록"), ("dispatched", "배차"), ("center_arrived", "센터도착"),
+    ("received", "접수"), ("error", "오류"), ("gaon", "가온등록"), ("rdc", "RDC 분리"), ("dispatched", "배차"), ("center_arrived", "센터도착"),
     ("shipped", "센터출발"), ("store_arrived", "점포도착"), ("delivered", "배송완료"), ("cancelled", "취소"),
 ]
 ORDER_STATUS_MAP = dict(ORDER_STATUS)
@@ -216,6 +216,9 @@ def _migrate(con):
         CREATE INDEX IF NOT EXISTS ix_ship_date ON shipments(planned_date);
         """)
     con.execute("UPDATE orders SET status='delivered' WHERE status='hub_arrived'")
+    # RDC(거점) 오더는 분리까지만: 운송 건 없음, 상태 'rdc'
+    con.execute("DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE delivery_type='hub')")
+    con.execute("UPDATE orders SET status='rdc' WHERE delivery_type='hub' AND status NOT IN ('cancelled','error','rdc')")
     usql = con.execute("SELECT sql FROM sqlite_master WHERE name='users'").fetchone()[0]
     if "'carrier'" not in usql:
         con.executescript("""
