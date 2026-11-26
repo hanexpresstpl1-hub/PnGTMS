@@ -50,11 +50,26 @@ def create_app():
     app.teardown_appcontext(dbm.close_db)
     app.before_request(load_user)
 
+    def eta_left(eta_at, arrived_at=None):
+        """예상도착까지 남은 시간 문구. 도착했으면 빈 문자열. 'n분 남음' / 'n시간 n분 남음' / 'n분 지연'"""
+        import datetime as _dt
+        if not eta_at or arrived_at:
+            return ""
+        try:
+            eta = _dt.datetime.strptime(eta_at[:16], "%Y-%m-%d %H:%M")
+        except ValueError:
+            return ""
+        m = int((eta - _dt.datetime.now()).total_seconds() // 60)
+        if m >= 0:
+            return ("%d시간 %d분 남음" % (m // 60, m % 60)) if m >= 60 else "%d분 남음" % m
+        m = -m
+        return ("%d시간 %d분 지연" % (m // 60, m % 60)) if m >= 60 else "%d분 지연" % m
+
     @app.context_processor
     def inject():
         return {"ORDER_STATUS_MAP": dbm.ORDER_STATUS_MAP, "SHIP_STATUS_MAP": dbm.SHIP_STATUS_MAP, "ROLE_MAP": dbm.ROLE_MAP,
                 "DTYPE_MAP": dbm.DTYPE_MAP, "RETURN_STATUS_MAP": dbm.RETURN_STATUS_MAP, "DRIVER_ACTIONS": dbm.DRIVER_ACTIONS, "NEXT_ACTION": dbm.NEXT_ACTION,
-                "setting": dbm.setting, "user": g.get("user"), "link": g.get("link")}
+                "setting": dbm.setting, "user": g.get("user"), "link": g.get("link"), "eta_left": eta_left}
 
     @app.route("/")
     def index():

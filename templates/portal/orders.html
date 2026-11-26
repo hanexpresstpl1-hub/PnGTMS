@@ -18,7 +18,7 @@
   <tr><td class="mono">{{ o.delivery_date }}</td><td><a href="{{ url_for('orders.detail', oid=o.id) }}">{{ o.order_no or '#' ~ o.id }}</a></td><td><b>{{ o.store_name }}</b> <small class="muted">{{ o.store_pg_code }}</small></td>
     <td>{{ DTYPE_MAP[o.delivery_type] }}{% if o.hub_name %} <small class="muted">({{ o.hub_name }})</small>{% endif %}</td><td class="r">{{ '%.0f'|format(o.qty or 0) }}</td><td class="r">{{ '%.1f'|format(o.box or 0) }}</td>
     <td><span class="badge st-{{ o.status }}">{{ ORDER_STATUS_MAP[o.status] }}</span> <small class="muted">{{ (o.updated_at or '')[5:16] }}</small></td>
-    <td>{% if o.eta_at and o.status in ('center_arrived','shipped') %}<b>{{ o.eta_at[11:16] }}</b>{% endif %}</td>
+    <td>{% if o.eta_at and o.status in ('center_arrived','shipped') %}<b>{{ o.eta_at[11:16] }}</b> {% set left = eta_left(o.eta_at) %}<span class="badge {{ 'sh-planned' if '지연' in left else 'sh-departed' }}">{{ left }}</span>{% endif %}</td>
     <td class="muted">{{ o.delivered_at or '' }}</td></tr>
   {% else %}<tr><td colspan="9" class="muted">조건에 맞는 오더가 없습니다.</td></tr>{% endfor %}
 </table>

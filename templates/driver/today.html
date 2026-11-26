@@ -24,7 +24,7 @@
     <li class="{{ 'done' if r.arrived_at }}">점포 도착 <span>{{ r.arrived_at[11:16] if r.arrived_at else '' }}{% if r.arrive_dist_m is not none %} · {{ r.arrive_dist_m|int }}m{% endif %}</span></li>
     <li class="{{ 'done' if r.delivered_at }}">배송 완료 <span>{{ r.delivered_at[11:16] if r.delivered_at else '' }}</span></li>
   </ol>
-  {% if r.eta_at and not r.arrived_at %}<div class="eta">예상 도착 <b>{{ r.eta_at[11:16] }}</b> <span class="muted small">약 {{ r.eta_km }}km · {{ r.eta_min|int }}분</span></div>{% endif %}
+  {% if r.eta_at and not r.arrived_at %}{% set left = eta_left(r.eta_at) %}<div class="eta">예상 도착 <b>{{ r.eta_at[11:16] }}</b> <b class="{{ 'bad' if '지연' in left }}">{{ left }}</b> <span class="muted small">약 {{ r.eta_km }}km</span></div>{% endif %}
   <div class="m-actions">
     {% set nxt = NEXT_ACTION.get(r.status) %}
     {% if nxt == 'deliver' %}

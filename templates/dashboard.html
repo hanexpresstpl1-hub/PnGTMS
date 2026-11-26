@@ -28,7 +28,7 @@
       <td><span class="prog"><i class="{{ 'on' if s.center_arrived_at }}"></i><i class="{{ 'on' if s.departed_at }}"></i><i class="{{ 'on' if s.arrived_at }}"></i><i class="{{ 'on' if s.delivered_at }}"></i></span></td>
       <td><span class="badge sh-{{ s.status }}">{{ SHIP_STATUS_MAP[s.status] }}</span> <small class="muted">{{ (s.last_at or s.assigned_at or '')[11:16] }}</small></td>
       <td>{{ (s.center_arrived_at or '')[11:16] }}</td><td>{{ (s.departed_at or '')[11:16] }}</td>
-      <td>{% if s.eta_at and not s.arrived_at %}<b>{{ s.eta_at[11:16] }}</b> <small class="muted">{{ s.eta_km }}km</small>{% elif s.eta_at %}<span class="muted">{{ s.eta_at[11:16] }}</span>{% endif %}</td>
+      <td>{% if s.eta_at and not s.arrived_at %}<b>{{ s.eta_at[11:16] }}</b> {% set left = eta_left(s.eta_at) %}<span class="badge {{ 'sh-planned' if '지연' in left else 'sh-departed' }}">{{ left }}</span> <small class="muted">{{ s.eta_km }}km</small>{% elif s.eta_at %}<span class="muted">{{ s.eta_at[11:16] }}</span>{% endif %}</td>
       <td>{{ (s.arrived_at or '')[11:16] }}{% if s.arrive_dist_m is not none %} <small class="{{ 'muted' if s.arrive_dist_m <= (setting('arrive_radius_m')|float) else 'bad' }}">{{ s.arrive_dist_m|int }}m</small>{% endif %}</td>
       <td>{{ (s.delivered_at or '')[11:16] }}</td>
     </tr>

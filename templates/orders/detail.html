@@ -39,7 +39,7 @@
         <li class="{{ 'done' if s.arrived_at }}">점포 도착 <span>{{ (s.arrived_at or '')[11:16] }}{% if s.arrive_dist_m is not none %} · {{ s.arrive_dist_m|int }}m{% endif %}</span></li>
         <li class="{{ 'done' if s.delivered_at }}">배송 완료 <span>{{ (s.delivered_at or '')[11:16] }}</span></li>
       </ol>
-      {% if s.eta_at %}<div class="eta">예상 도착 <b>{{ s.eta_at[11:16] }}</b> <span class="muted small">약 {{ s.eta_km }}km · {{ s.eta_min|int }}분{% if s.arrived_at %} · 실제 도착 {{ s.arrived_at[11:16] }}{% endif %}</span></div>{% endif %}
+      {% if s.eta_at %}<div class="eta">예상 도착 <b>{{ s.eta_at[11:16] }}</b>{% set left = eta_left(s.eta_at, s.arrived_at) %}{% if left %} <b class="{{ 'bad' if '지연' in left }}">{{ left }}</b>{% endif %} <span class="muted small">약 {{ s.eta_km }}km · {{ s.eta_min|int }}분{% if s.arrived_at %} · 실제 도착 {{ s.arrived_at[11:16] }}{% endif %}</span></div>{% endif %}
       {% if s.last_lat %}<div class="muted small">마지막 위치 {{ s.last_at }} · <a href="https://map.kakao.com/link/map/기사위치,{{ s.last_lat }},{{ s.last_lng }}" target="_blank">지도 보기</a></div>{% endif %}
       {% else %}<div class="muted small">{% if s.departed_at %}출고 {{ s.departed_at }}{% endif %} {% if s.delivered_at %}· 완료 처리 {{ s.delivered_at }}{% endif %}</div>{% endif %}
     </div>
